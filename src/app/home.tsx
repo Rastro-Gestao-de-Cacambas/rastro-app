@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSync } from '@/hooks/useSync';
 import { workOrdersApi } from '@/lib/api';
 import { WorkOrder, WorkOrderStatus, WorkOrderType } from '@/shared';
+import { formatWorkOrderDeliveryDuration } from '@/utils/date';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -271,47 +272,55 @@ export default function HomeScreen() {
             <Text style={styles.emptyText}>Nenhuma tarefa para este dia</Text>
           </View>
         ) : (
-          displayOrders.map((order) => (
-            <TouchableOpacity
-              key={order.id}
-              style={styles.orderCard}
-              onPress={() => router.push(`/work-order-detail?id=${order.id}`)}
-            >
-              <View style={styles.orderHeader}>
-                <Text style={styles.orderSequence}>{order.sequence}</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: getStatusColor(order.status) + '20' },
-                  ]}
-                >
-                  <Text
-                    style={[styles.statusText, { color: getStatusColor(order.status) }]}
+          displayOrders.map((order) => {
+            const deliveryDuration = formatWorkOrderDeliveryDuration(
+              order.startedAt,
+              order.completedAt,
+              order.status,
+            );
+            return (
+              <TouchableOpacity
+                key={order.id}
+                style={styles.orderCard}
+                onPress={() => router.push(`/work-order-detail?id=${order.id}`)}
+              >
+                <View style={styles.orderHeader}>
+                  <Text style={styles.orderSequence}>{order.sequence}</Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: getStatusColor(order.status) + '20' },
+                    ]}
                   >
-                    {getStatusLabel(order.status)}
-                  </Text>
+                    <Text
+                      style={[styles.statusText, { color: getStatusColor(order.status) }]}
+                    >
+                      {getStatusLabel(order.status)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <Text style={styles.orderType}>{getTypeLabel(order.type)}</Text>
-              <Text style={styles.orderInfo}>
-                {order.dumpster?.code} - {order.vehicle?.placa}
-              </Text>
-              {order.jobSite && (
-                <Text style={styles.orderAddress}>{order.jobSite.name || 'Endereço'} - {order.jobSite.address}</Text>
-              )}
-              {order.yard && <Text style={styles.orderAddress}>{order.yard.name}</Text>}
-              {order.scheduledAt && (
-                <Text style={styles.orderSchedule}>
-                  Agendado: {new Date(order.scheduledAt).toLocaleString('pt-BR')}
+                <Text style={styles.orderType}>{getTypeLabel(order.type)}</Text>
+                <Text style={styles.orderInfo}>
+                  {order.dumpster?.code} - {order.vehicle?.placa}
                 </Text>
-              )}
-              {order.startedAt && (
-                <Text style={styles.orderTime}>
-                  Iniciado: {new Date(order.startedAt).toLocaleString('pt-BR')}
-                </Text>
-              )}
-            </TouchableOpacity>
-          ))
+                {order.jobSite && (
+                  <Text style={styles.orderAddress}>{order.jobSite.name || 'Endereço'} - {order.jobSite.address}</Text>
+                )}
+                {order.yard && <Text style={styles.orderAddress}>{order.yard.name}</Text>}
+                {deliveryDuration && (
+                  <Text style={styles.orderSchedule}>
+                    Tempo de entrega: {deliveryDuration}
+                    {order.status === WorkOrderStatus.IN_PROGRESS ? ' (até agora)' : ''}
+                  </Text>
+                )}
+                {order.startedAt && (
+                  <Text style={styles.orderTime}>
+                    Iniciado: {new Date(order.startedAt).toLocaleString('pt-BR')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </View>

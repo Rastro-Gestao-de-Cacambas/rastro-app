@@ -1,6 +1,7 @@
 import { workOrdersApi } from '@/lib/api';
 import { storageService } from '@/lib/storage';
 import { WorkOrder, WorkOrderType } from '@/shared';
+import { formatWorkOrderDeliveryDuration } from '@/utils/date';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -293,6 +294,12 @@ export default function WorkOrderDetailScreen() {
     );
   }
 
+  const deliveryDuration = formatWorkOrderDeliveryDuration(
+    workOrder.startedAt,
+    workOrder.completedAt,
+    workOrder.status,
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -434,9 +441,12 @@ export default function WorkOrderDetailScreen() {
             {workOrder.status === 'DONE' && (
               <View style={styles.completedSection}>
                 <Text style={styles.completedText}>✓ Tarefa Concluída</Text>
+                {deliveryDuration && (
+                  <Text style={styles.completedDuration}>Tempo de entrega: {deliveryDuration}</Text>
+                )}
                 {workOrder.completedAt && (
                   <Text style={styles.completedDate}>
-                    {new Date(workOrder.completedAt).toLocaleString('pt-BR')}
+                    Concluído em: {new Date(workOrder.completedAt).toLocaleString('pt-BR')}
                   </Text>
                 )}
                 {workOrder.proofs && workOrder.proofs.length > 0 && (
@@ -632,6 +642,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: '#10b981',
     marginBottom: 8,
+  },
+  completedDuration: {
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#047857',
+    marginBottom: 6,
   },
   completedDate: {
     fontSize: 14,
