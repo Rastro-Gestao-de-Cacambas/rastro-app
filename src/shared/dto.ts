@@ -5,7 +5,6 @@ import {
   WorkOrderStatus,
   CustomerType,
   DumpsterStatus,
-  VehicleType,
   VehicleStatus,
   DriverStatus,
   CNHCategory,
@@ -119,7 +118,7 @@ export interface ResetPasswordDto {
 
 export interface CreateVehicleDto {
   placa: string;
-  tipo: VehicleType;
+  vehicleTypeId: string;
   marca?: string;
   modelo?: string;
   ano?: number;

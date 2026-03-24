@@ -5,7 +5,6 @@ import {
   WorkOrderType,
   WorkOrderStatus,
   CustomerType,
-  VehicleType,
   VehicleStatus,
   DriverStatus,
   CNHCategory,
@@ -87,10 +86,19 @@ export interface JobSite {
   customer?: Customer;
 }
 
+export interface VehicleType {
+  id: string;
+  name: string;
+  empresaId?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Vehicle {
   id: string;
   placa: string;
-  tipo: VehicleType;
+  vehicleTypeId: string;
+  vehicleType?: VehicleType;
   marca?: string;
   modelo?: string;
   ano?: number;

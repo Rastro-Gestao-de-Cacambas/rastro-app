@@ -35,13 +35,6 @@ export enum WorkOrderStatus {
   CANCELED = 'CANCELED',
 }
 
-export enum VehicleType {
-  TRUCK = 'TRUCK',
-  PICKUP = 'PICKUP',
-  TRAILER = 'TRAILER',
-  OTHER = 'OTHER',
-}
-
 export enum VehicleStatus {
   AVAILABLE = 'AVAILABLE',
   IN_USE = 'IN_USE',
