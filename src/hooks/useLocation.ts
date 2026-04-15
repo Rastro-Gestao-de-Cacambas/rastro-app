@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import * as Location from 'expo-location';
 
-interface LocationData {
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
+export interface CapturedLocation {
+  lat: number;
+  lng: number;
+  accuracy?: number;
 }
 
 export function useLocation() {
-  const [location, setLocation] = useState<LocationData | null>(null);
+  const [location, setLocation] = useState<CapturedLocation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,13 +20,13 @@ export function useLocation() {
         return false;
       }
       return true;
-    } catch (err) {
+    } catch {
       setError('Erro ao solicitar permissão de localização');
       return false;
     }
   };
 
-  const getCurrentLocation = async () => {
+  const getCurrentLocation = async (): Promise<CapturedLocation | null> => {
     setLoading(true);
     setError(null);
 
@@ -37,19 +37,19 @@ export function useLocation() {
         return null;
       }
 
-      const location = await Location.getCurrentPositionAsync({
+      const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
-      const locationData: LocationData = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        accuracy: location.coords.accuracy || null,
+      const captured: CapturedLocation = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy || undefined,
       };
 
-      setLocation(locationData);
+      setLocation(captured);
       setLoading(false);
-      return locationData;
+      return captured;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao obter localização');
       setLoading(false);

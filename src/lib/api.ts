@@ -1,5 +1,5 @@
 import { authStorage } from '@/lib/authStorage';
-import { AuthResponseDto, CreateDeliveryDto, LoginDto } from '@/shared';
+import { AuthResponseDto, LoginDto } from '@/shared';
 import axios from 'axios';
 import { router } from 'expo-router';
 
@@ -50,27 +50,32 @@ export const dumpstersApi = {
   getById: (id: string) => api.get(`/dumpsters/${id}`),
 };
 
-export const deliveriesApi = {
-  getAll: () => api.get('/deliveries'),
-  create: (data: CreateDeliveryDto) => api.post('/deliveries', data),
-};
-
 export const workOrdersApi = {
-  getMyOrders: (dateFrom: string, dateTo: string) =>
-    api.get('/work-orders/driver', { params: { dateFrom, dateTo } }),
+  getMyOrders: () => api.get('/work-orders/driver'),
   getById: (id: string) => api.get(`/work-orders/driver/${id}`),
   start: (id: string, body?: { dumpsterId?: string }) =>
     api.post(`/work-orders/driver/${id}/start`, body ?? {}),
-  complete: async (id: string, formData: FormData) => {
+  complete: async (
+    id: string,
+    body: {
+      lat: number;
+      lng: number;
+      accuracy?: number;
+      notes?: string;
+      returnLoad?: 'EMPTY' | 'WITH_RESIDUE';
+    },
+  ) => {
     const token = await authStorage.getToken();
     const baseURL = API_URL.replace(/\/$/, '');
     const url = `${baseURL}/work-orders/driver/${id}/complete`;
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
     if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: formData,
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       if (response.status === 401) {
@@ -86,11 +91,6 @@ export const workOrdersApi = {
     }
     return { data: await response.json() };
   },
-};
-
-export const jobSitesApi = {
-  getAll: () => api.get('/job-sites'),
-  getById: (id: string) => api.get(`/job-sites/${id}`),
 };
 
 export default api;

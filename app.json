@@ -24,11 +24,8 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {},
@@ -39,14 +36,9 @@
           "locationAlwaysAndWhenInUsePermission": "Este app precisa de acesso à localização para registrar entregas e retiradas de caçambas."
         }
       ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Este app precisa de acesso à câmera para tirar fotos das caçambas."
-        }
-      ],
       "expo-router",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-sqlite"
     ],
     "scheme": "cacambas",
     "extra": {

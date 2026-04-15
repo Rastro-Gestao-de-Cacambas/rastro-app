@@ -39,9 +39,17 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    authStorage.getSavedCpf().then((cpf) => {
-      if (cpf) setFormData((prev) => ({ ...prev, cpf: formatCpf(cpf) }));
-    });
+    (async () => {
+      const [cpfDigits, password] = await Promise.all([
+        authStorage.getSavedCpf(),
+        authStorage.getSavedPassword(),
+      ]);
+      setFormData((prev) => ({
+        ...prev,
+        ...(cpfDigits ? { cpf: formatCpf(cpfDigits) } : {}),
+        ...(password ? { password } : {}),
+      }));
+    })();
   }, []);
 
   const handleLogin = async () => {
@@ -50,7 +58,7 @@ export default function LoginScreen() {
       const response = await authApi.login(formData);
       await login(response.accessToken, response.user, rememberMe);
       if (rememberMe) {
-        await authStorage.saveCpfForNextLogin(formData.cpf);
+        await authStorage.saveLoginCredentials(formData.cpf, formData.password);
       }
       router.replace('/home');
     } catch (error: unknown) {

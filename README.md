@@ -75,11 +75,7 @@ EXPO_PUBLIC_API_URL=http://localhost:3000
 
 ### Permissões Necessárias
 
-O app requer as seguintes permissões:
-- **Localização (GPS)** - Para registrar a localização das entregas/retiradas
-- **Câmera** - Para tirar fotos das caçambas
-
-Essas permissões são configuradas automaticamente no `app.json`.
+O app requer a permissão de **localização (GPS)** para registrar a conclusão das ordens. Ela é configurada no `app.json` (plugin `expo-location`).
 
 ## 📁 Estrutura do Projeto
 
@@ -89,15 +85,13 @@ mobile/
 │   ├── app/              # Telas do app (expo-router)
 │   │   ├── login.tsx     # Tela de login
 │   │   ├── home.tsx      # Tela inicial (lista de ordens)
-│   │   ├── delivery.tsx  # Tela de registro de entrega/retirada
 │   │   └── work-order-detail.tsx # Detalhes da ordem de serviço
 │   ├── hooks/            # React hooks customizados
 │   │   ├── useAuth.ts    # Hook de autenticação
-│   │   ├── useLocation.ts # Hook de localização GPS
-│   │   └── useSync.ts    # Hook de sincronização offline
+│   │   └── useLocation.ts # Hook de localização GPS
 │   ├── lib/              # Bibliotecas e utilitários
 │   │   ├── api.ts        # Cliente API (Axios)
-│   │   └── storage.ts    # Serviço de armazenamento local (AsyncStorage)
+│   │   └── authStorage.ts # Sessão (token / utilizador)
 │   └── shared/           # Tipos, DTOs e enums compartilhados
 │       ├── dto.ts        # Data Transfer Objects
 │       ├── enums.ts      # Enumeradores
@@ -121,9 +115,7 @@ O app utiliza autenticação JWT. Ao fazer login, o token é armazenado no `Asyn
 - ✅ Iniciar ordem de serviço
 - ✅ Completar ordem de serviço com:
   - Captura de GPS (latitude, longitude, precisão)
-  - Foto opcional
-  - Observações
-- ✅ Suporte offline (salva localmente e sincroniza depois)
+  - Observações (opcional)
 - ✅ Registro de entregas/retiradas de caçambas
 
 ## 🔗 Integração com API
@@ -150,7 +142,6 @@ O app consome a API através do cliente Axios configurado em `src/lib/api.ts`. A
 - **Axios** - Cliente HTTP
 - **AsyncStorage** - Armazenamento local
 - **Expo Location** - Acesso à localização GPS
-- **Expo Camera** - Acesso à câmera
 
 ## 🛠️ Build e Deploy
 

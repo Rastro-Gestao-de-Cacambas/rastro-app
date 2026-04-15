@@ -1,3 +1,10 @@
+export function formatDateBr(d?: Date | string | null): string {
+  if (d == null) return '—';
+  const date = typeof d === 'string' ? new Date(d) : d;
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('pt-BR');
+}
+
 function formatDurationMs(ms: number): string {
   const n = ms < 0 ? 0 : ms;
   const totalSec = Math.floor(n / 1000);

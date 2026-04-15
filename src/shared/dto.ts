@@ -45,13 +45,11 @@ export interface CreateDeliveryDto {
   latitude: number;
   longitude: number;
   accuracy?: number;
-  photoUrl?: string;
   notes?: string;
 }
 
 export interface UpdateDeliveryDto {
   notes?: string;
-  photoUrl?: string;
 }
 
 export interface CreateDumpsterDto {

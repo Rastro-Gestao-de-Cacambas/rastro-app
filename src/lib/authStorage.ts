@@ -6,6 +6,8 @@ const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
 const REMEMBER_ME_KEY = 'auth_remember_me';
 const SAVED_CPF_KEY = 'auth_saved_cpf';
+/** Senha lembrada no login (somente com “Lembrar senha”) — SecureStore */
+const SAVED_PASSWORD_KEY = 'auth_saved_password';
 
 let inMemoryToken: string | null = null;
 
@@ -59,12 +61,26 @@ export const authStorage = {
     }
   },
 
-  async saveCpfForNextLogin(cpf: string) {
-    await AsyncStorage.setItem(SAVED_CPF_KEY, cpf);
+  /**
+   * Persiste CPF (apenas dígitos) e senha para pré-preencher o próximo acesso.
+   * Chamado após login com “Lembrar senha”.
+   */
+  async saveLoginCredentials(cpf: string, password: string): Promise<void> {
+    const digits = cpf.replace(/\D/g, '');
+    await AsyncStorage.setItem(SAVED_CPF_KEY, digits);
+    await SecureStore.setItemAsync(SAVED_PASSWORD_KEY, password);
   },
 
   async getSavedCpf(): Promise<string | null> {
     return AsyncStorage.getItem(SAVED_CPF_KEY);
+  },
+
+  async getSavedPassword(): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(SAVED_PASSWORD_KEY);
+    } catch {
+      return null;
+    }
   },
 
   async getToken(): Promise<string | null> {
@@ -112,9 +128,12 @@ export const authStorage = {
     return value === 'true';
   },
 
+  /**
+   * Encerra a sessão (logout). Mantém CPF/senha salvos se o usuário marcou “Lembrar senha”.
+   */
   async clear(): Promise<void> {
     inMemoryToken = null;
-    await this.clearPersisted();
+    await this.clearSession();
   },
 
   async clearSession(): Promise<void> {
@@ -125,9 +144,13 @@ export const authStorage = {
     await AsyncStorage.multiRemove([USER_KEY, REMEMBER_ME_KEY, 'token', 'user']);
   },
 
+  /** Remove token/sessão e credenciais lembradas (ex.: login sem “Lembrar senha”). */
   async clearPersisted(): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
+    } catch {}
+    try {
+      await SecureStore.deleteItemAsync(SAVED_PASSWORD_KEY);
     } catch {}
     await AsyncStorage.multiRemove([USER_KEY, REMEMBER_ME_KEY, SAVED_CPF_KEY, 'token', 'user']);
   },

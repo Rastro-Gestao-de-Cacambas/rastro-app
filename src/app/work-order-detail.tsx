@@ -1,15 +1,28 @@
-import { dumpstersApi, workOrdersApi } from '@/lib/api';
-import { storageService } from '@/lib/storage';
+import { useLocation } from '@/hooks/useLocation';
+import { dumpstersApi } from '@/lib/api';
+import {
+  enqueueWorkOrderComplete,
+  enqueueWorkOrderStart,
+} from '@/lib/db/outboxRepository';
+import {
+  getWorkOrderById,
+  upsertWorkOrder,
+} from '@/lib/db/workOrdersRepository';
+import {
+  applyOptimisticComplete,
+  applyOptimisticStart,
+} from '@/lib/sync/optimisticWorkOrder';
+import { runSyncEngine } from '@/lib/sync/syncEngine';
+import { pullDriverWorkOrders } from '@/lib/sync/pullDriverWorkOrders';
+import type { CompleteMutationPayload } from '@/lib/sync/payloads';
 import { Dumpster, DumpsterStatus, WorkOrder, WorkOrderType } from '@/shared';
-import { formatWorkOrderDeliveryDuration } from '@/utils/date';
-import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
+import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
+import { getWorkOrderScheduledDateLabel } from '@/utils/work-order-labels';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -31,15 +44,16 @@ export default function WorkOrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [location, setLocation] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const { location, getCurrentLocation, loading: locationLoading } = useLocation();
+  const [returnLoad, setReturnLoad] = useState<'EMPTY' | 'WITH_RESIDUE' | null>(null);
   const [notes, setNotes] = useState('');
   const [timer, setTimer] = useState<number>(0);
   const [availableDumpsters, setAvailableDumpsters] = useState<Dumpster[]>([]);
   const [selectedDumpsterId, setSelectedDumpsterId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadWorkOrder();
+    setReturnLoad(null);
+    void loadWorkOrder();
   }, [orderId]);
 
   const needsDriverDumpsterChoice =
@@ -85,12 +99,31 @@ export default function WorkOrderDetailScreen() {
   }, [workOrder?.status, workOrder?.startedAt]);
 
   const loadWorkOrder = async () => {
+    setLoading(true);
     try {
-      const response = await workOrdersApi.getById(orderId);
-      setWorkOrder(response.data);
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar a tarefa');
-      router.back();
+      try {
+        await runSyncEngine();
+      } catch {
+        // continua com snapshot local
+      }
+      let wo = await getWorkOrderById(orderId);
+      if (!wo) {
+        try {
+          await pullDriverWorkOrders();
+          wo = await getWorkOrderById(orderId);
+        } catch {
+          // pull falhou; mantém wo null
+        }
+      }
+      if (!wo) {
+        Alert.alert(
+          'Tarefa',
+          'Não foi possível carregar esta tarefa. Volte à lista e atualize.',
+        );
+        router.back();
+        return;
+      }
+      setWorkOrder(wo);
     } finally {
       setLoading(false);
     }
@@ -108,68 +141,44 @@ export default function WorkOrderDetailScreen() {
 
     setStarting(true);
     try {
-      const response = await workOrdersApi.start(
-        workOrder.id,
+      const selectedDumpster =
         needsDriverDumpsterChoice && selectedDumpsterId
-          ? { dumpsterId: selectedDumpsterId }
-          : undefined,
-      );
-      setWorkOrder(response.data);
+          ? availableDumpsters.find((d) => d.id === selectedDumpsterId)
+          : undefined;
+      const optimistic = applyOptimisticStart(workOrder, {
+        dumpsterId:
+          needsDriverDumpsterChoice && selectedDumpsterId
+            ? selectedDumpsterId
+            : undefined,
+        dumpster: selectedDumpster,
+      });
+      setWorkOrder(optimistic);
+      await upsertWorkOrder(optimistic);
+      await enqueueWorkOrderStart(workOrder.id, {
+        dumpsterId:
+          needsDriverDumpsterChoice && selectedDumpsterId
+            ? selectedDumpsterId
+            : undefined,
+      });
+      void runSyncEngine();
       Alert.alert('Sucesso', 'Tarefa iniciada!');
     } catch (error: unknown) {
       const message =
         error && typeof error === 'object' && 'response' in error
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
           : undefined;
-      Alert.alert('Erro', message || 'Não foi possível iniciar a tarefa');
+      Alert.alert('Erro', message || 'Não foi possível registar o início da tarefa');
     } finally {
       setStarting(false);
     }
   };
 
   const handleGetLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permissão negada', 'É necessário permissão de localização');
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      setLocation({
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-        accuracy: location.coords.accuracy || undefined,
-      });
-
+    const loc = await getCurrentLocation();
+    if (loc) {
       Alert.alert('Sucesso', 'Localização capturada!');
-    } catch (error) {
+    } else {
       Alert.alert('Erro', 'Não foi possível obter a localização');
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permissão negada', 'É necessário permissão para usar a câmera');
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setPhotoUri(result.assets[0].uri);
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível tirar a foto');
     }
   };
 
@@ -180,71 +189,59 @@ export default function WorkOrderDetailScreen() {
       return;
     }
 
+    const exchangeLeg =
+      workOrder.type === WorkOrderType.EXCHANGE ? (workOrder.exchangeLeg ?? 1) : null;
+    const needsReturnLoad =
+      workOrder.type === WorkOrderType.PICK_UP ||
+      (workOrder.type === WorkOrderType.EXCHANGE && exchangeLeg === 2);
+    if (needsReturnLoad && !returnLoad) {
+      Alert.alert(
+        'Atenção',
+        'Informe se a caçamba retirada do local está vazia ou com resíduos.',
+      );
+      return;
+    }
+
     setCompleting(true);
 
     try {
-      const formData = new FormData();
-      if (photoUri) {
-        formData.append('photo', {
-          uri: photoUri,
-          type: 'image/jpeg',
-          name: 'photo.jpg',
-        } as unknown as Blob);
-      }
-      formData.append('lat', location.lat.toString());
-      formData.append('lng', location.lng.toString());
-      if (location.accuracy) {
-        formData.append('accuracy', location.accuracy.toString());
-      }
-      if (notes) {
-        formData.append('notes', notes);
+      const completeBody: CompleteMutationPayload = {
+        lat: location.lat,
+        lng: location.lng,
+        ...(location.accuracy != null ? { accuracy: location.accuracy } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(needsReturnLoad && returnLoad ? { returnLoad } : {}),
+      };
+
+      const prevExchangeLeg1 =
+        workOrder.type === WorkOrderType.EXCHANGE &&
+        (workOrder.exchangeLeg ?? 1) === 1;
+
+      const optimistic = applyOptimisticComplete(workOrder, completeBody);
+      setWorkOrder(optimistic);
+      await upsertWorkOrder(optimistic);
+      await enqueueWorkOrderComplete(workOrder.id, completeBody);
+      void runSyncEngine();
+
+      if (prevExchangeLeg1) {
+        setReturnLoad(null);
+        Alert.alert(
+          'Sucesso',
+          'Entrega da caçamba nova registrada. Agora retire a caçamba antiga do local e informe se está vazia ou com resíduos.',
+        );
+        return;
       }
 
-      await workOrdersApi.complete(workOrder.id, formData);
       Alert.alert('Sucesso', 'Tarefa concluída!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (error: unknown) {
-      const status = error && typeof error === 'object' && 'response' in error
-        ? (error as { response?: { status?: number; data?: { message?: string } } }).response?.status
-        : undefined;
-      const message = error && typeof error === 'object' && 'response' in error
-        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-        : undefined;
-
-      if (status === 404) {
-        Alert.alert(
-          'Ordem não encontrada',
-          'Esta ordem de serviço não foi encontrada no servidor. Ela pode ter sido removida ou já concluída.',
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
-        return;
-      }
-
-      if (status === 400 && message) {
-        Alert.alert('Localização', message);
-        return;
-      }
-
-      try {
-        const pendingData = {
-          workOrderId: workOrder.id,
-          photoUri,
-          lat: location?.lat ?? 0,
-          lng: location?.lng ?? 0,
-          accuracy: location?.accuracy,
-          notes,
-          timestamp: new Date().toISOString(),
-        };
-        await storageService.savePendingCompletion(pendingData);
-        Alert.alert(
-          'Salvo offline',
-          'A conclusão foi salva localmente e será sincronizada quando houver conexão.',
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
-      } catch (offlineError) {
-        Alert.alert('Erro', 'Não foi possível salvar a conclusão');
-      }
+      const message =
+        error instanceof Error ? error.message : String(error);
+      Alert.alert(
+        'Erro',
+        message || 'Não foi possível registar a conclusão localmente.',
+      );
     } finally {
       setCompleting(false);
     }
@@ -342,6 +339,20 @@ export default function WorkOrderDetailScreen() {
     workOrder.status,
   );
 
+  const exchangeLeg =
+    workOrder.type === WorkOrderType.EXCHANGE ? (workOrder.exchangeLeg ?? 1) : null;
+  const needsReturnLoadForUi =
+    workOrder.type === WorkOrderType.PICK_UP ||
+    (workOrder.type === WorkOrderType.EXCHANGE && exchangeLeg === 2);
+
+  const scheduledLabel = getWorkOrderScheduledDateLabel(workOrder.type);
+  const vehicleLine = (() => {
+    const v = workOrder.vehicle;
+    if (!v) return '—';
+    const extra = [v.marca, v.modelo].filter(Boolean).join(' ');
+    return extra ? `${v.placa} · ${extra}` : v.placa;
+  })();
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -356,7 +367,16 @@ export default function WorkOrderDetailScreen() {
           <View style={styles.content}>
             <View style={styles.header}>
               <Text style={styles.sequence}>{workOrder.sequence}</Text>
-              <Text style={styles.type}>{getTypeLabel(workOrder.type)}</Text>
+              <View style={styles.headerTypeCol}>
+                <Text style={styles.type}>{getTypeLabel(workOrder.type)}</Text>
+                {exchangeLeg != null && workOrder.status === 'IN_PROGRESS' && (
+                  <Text style={styles.exchangeStepHint}>
+                    {exchangeLeg === 1
+                      ? 'Etapa 1: entregar caçamba nova'
+                      : 'Etapa 2: retirar caçamba antiga'}
+                  </Text>
+                )}
+              </View>
             </View>
 
             <View style={styles.infoSection}>
@@ -371,10 +391,29 @@ export default function WorkOrderDetailScreen() {
 
             <View style={styles.infoSection}>
               <Text style={styles.label}>Veículo</Text>
-              <Text style={styles.value}>
-                {workOrder.vehicle?.placa} - {workOrder.vehicle?.marca || workOrder.vehicle?.placa}
-              </Text>
+              <Text style={styles.value}>{vehicleLine}</Text>
             </View>
+
+            {workOrder.scheduledAt && (
+              <View style={styles.infoSection}>
+                <Text style={styles.label}>{scheduledLabel}</Text>
+                <Text style={styles.value}>{formatDateBr(workOrder.scheduledAt)}</Text>
+              </View>
+            )}
+
+            {workOrder.returnDueDate && (
+              <View style={styles.infoSection}>
+                <Text style={styles.label}>Prazo de devolução</Text>
+                <Text style={styles.value}>{formatDateBr(workOrder.returnDueDate)}</Text>
+              </View>
+            )}
+
+            {workOrder.observations?.trim() ? (
+              <View style={styles.infoSection}>
+                <Text style={styles.label}>Observações do pedido</Text>
+                <Text style={styles.value}>{workOrder.observations}</Text>
+              </View>
+            ) : null}
 
             {workOrder.jobSite && (
               <View style={styles.infoSection}>
@@ -467,10 +506,18 @@ export default function WorkOrderDetailScreen() {
               <>
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Localização GPS (obrigatório)</Text>
-                  <TouchableOpacity style={styles.actionButton} onPress={handleGetLocation}>
-                    <Text style={styles.actionButtonText}>
-                      {location ? 'Localização Capturada ✓' : 'Capturar Localização'}
-                    </Text>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={handleGetLocation}
+                    disabled={locationLoading}
+                  >
+                    {locationLoading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.actionButtonText}>
+                        {location ? 'Localização capturada ✓' : 'Capturar localização'}
+                      </Text>
+                    )}
                   </TouchableOpacity>
                   {location && (
                     <Text style={styles.locationText}>
@@ -480,17 +527,48 @@ export default function WorkOrderDetailScreen() {
                   )}
                 </View>
 
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Foto (Opcional)</Text>
-                  <TouchableOpacity style={styles.actionButton} onPress={handleTakePhoto}>
-                    <Text style={styles.actionButtonText}>
-                      {photoUri ? 'Foto Capturada ✓' : 'Tirar Foto'}
+                {needsReturnLoadForUi && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Caçamba retirada do local *</Text>
+                    <Text style={styles.subValue}>
+                      A caçamba que sai do cliente está vazia ou ainda com resíduos?
                     </Text>
-                  </TouchableOpacity>
-                  {photoUri && (
-                    <Image source={{ uri: photoUri }} style={styles.photoPreview} />
-                  )}
-                </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.dumpsterOption,
+                        returnLoad === 'EMPTY' && styles.dumpsterOptionSelected,
+                      ]}
+                      onPress={() => setReturnLoad('EMPTY')}
+                    >
+                      <Text
+                        style={
+                          returnLoad === 'EMPTY'
+                            ? styles.dumpsterOptionTextSelected
+                            : styles.dumpsterOptionText
+                        }
+                      >
+                        Vazia
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.dumpsterOption,
+                        returnLoad === 'WITH_RESIDUE' && styles.dumpsterOptionSelected,
+                      ]}
+                      onPress={() => setReturnLoad('WITH_RESIDUE')}
+                    >
+                      <Text
+                        style={
+                          returnLoad === 'WITH_RESIDUE'
+                            ? styles.dumpsterOptionTextSelected
+                            : styles.dumpsterOptionText
+                        }
+                      >
+                        Com resíduos
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Observações (Opcional)</Text>
@@ -507,15 +585,22 @@ export default function WorkOrderDetailScreen() {
                 <TouchableOpacity
                   style={[
                     styles.completeButton,
-                    !location && styles.completeButtonDisabled,
+                    (!location || (needsReturnLoadForUi && !returnLoad)) &&
+                      styles.completeButtonDisabled,
                   ]}
                   onPress={handleComplete}
-                  disabled={completing || !location}
+                  disabled={
+                    completing || !location || (needsReturnLoadForUi && !returnLoad)
+                  }
                 >
                   {completing ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.completeButtonText}>Concluir Tarefa</Text>
+                    <Text style={styles.completeButtonText}>
+                      {workOrder.type === WorkOrderType.EXCHANGE && exchangeLeg === 1
+                        ? 'Concluir entrega (etapa 1)'
+                        : 'Concluir tarefa'}
+                    </Text>
                   )}
                 </TouchableOpacity>
               </>
@@ -587,6 +672,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'Inter_700Bold',
     color: '#0ea5e9',
+  },
+  headerTypeCol: {
+    alignItems: 'flex-end',
+    maxWidth: '72%',
+  },
+  exchangeStepHint: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: '#64748b',
+    marginTop: 4,
+    textAlign: 'right',
   },
   infoSection: {
     backgroundColor: '#fff',
@@ -707,12 +803,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 5,
-  },
-  photoPreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginTop: 10,
   },
   textArea: {
     borderWidth: 1,

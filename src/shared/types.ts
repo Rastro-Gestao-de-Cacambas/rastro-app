@@ -151,7 +151,6 @@ export interface Delivery {
   latitude: number;
   longitude: number;
   accuracy?: number;
-  photoUrl?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -172,6 +171,10 @@ export interface WorkOrder {
   driverId: string;
   vehicleId: string;
   dumpsterId: string | null;
+  /** Troca: caçamba nova a entregar */
+  exchangeDumpsterId?: string | null;
+  /** Troca em duas etapas: 1 = entregar nova, 2 = retirar antiga */
+  exchangeLeg?: number | null;
   jobSiteId?: string;
   yardId?: string;
   createdAt: Date;
@@ -181,6 +184,7 @@ export interface WorkOrder {
   driver?: Driver;
   vehicle?: Vehicle;
   dumpster?: Dumpster;
+  exchangeDumpster?: Dumpster;
   jobSite?: JobSite;
   yard?: Yard;
   proofs?: WorkOrderProof[];
@@ -192,7 +196,6 @@ export interface WorkOrderProof {
   lat: number;
   lng: number;
   accuracy?: number;
-  photoUrl?: string;
   notes?: string;
   createdAt: Date;
   workOrder?: WorkOrder;
