@@ -22,8 +22,8 @@ export function useAuth() {
         setUser(userData);
         setIsAuthenticated(true);
       }
-    } catch (error) {
-      console.error('Erro ao carregar autenticação:', error);
+    } catch {
+      // token inválido ou storage corrompido — tratar como não autenticado
     } finally {
       setLoading(false);
     }
@@ -34,8 +34,8 @@ export function useAuth() {
       await authStorage.setCredentials(token, userData, rememberMe);
       setUser(userData);
       setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Erro ao fazer login:', error);
+    } catch {
+      // falha ao persistir — estado em memória já foi atualizado
     }
   };
 
@@ -44,8 +44,10 @@ export function useAuth() {
       await authStorage.clear();
       setUser(null);
       setIsAuthenticated(false);
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error);
+    } catch {
+      // falha ao limpar storage — garante estado limpo em memória
+      setUser(null);
+      setIsAuthenticated(false);
     }
   };
 

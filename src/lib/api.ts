@@ -1,5 +1,5 @@
 import { authStorage } from '@/lib/authStorage';
-import { AuthResponseDto, LoginDto } from '@/shared';
+import { AuthResponseDto, Dumpster, LoginDto, WorkOrder } from '@/shared';
 import axios from 'axios';
 import { router } from 'expo-router';
 
@@ -46,51 +46,24 @@ export const authApi = {
 };
 
 export const dumpstersApi = {
-  getAll: () => api.get('/dumpsters'),
-  getById: (id: string) => api.get(`/dumpsters/${id}`),
+  getAll: () => api.get<Dumpster[]>('/dumpsters'),
+  getById: (id: string) => api.get<Dumpster>(`/dumpsters/${id}`),
 };
 
 export const workOrdersApi = {
-  getMyOrders: () => api.get('/work-orders/driver'),
-  getById: (id: string) => api.get(`/work-orders/driver/${id}`),
+  getMyOrders: () => api.get<WorkOrder[]>('/work-orders/driver'),
+  getById: (id: string) => api.get<WorkOrder>(`/work-orders/driver/${id}`),
   start: (id: string, body?: { dumpsterId?: string }) =>
-    api.post(`/work-orders/driver/${id}/start`, body ?? {}),
-  complete: async (
+    api.post<WorkOrder>(`/work-orders/driver/${id}/start`, body ?? {}),
+  complete: (
     id: string,
     body: {
       lat: number;
       lng: number;
       accuracy?: number;
       notes?: string;
-      returnLoad?: 'EMPTY' | 'WITH_RESIDUE';
     },
-  ) => {
-    const token = await authStorage.getToken();
-    const baseURL = API_URL.replace(/\/$/, '');
-    const url = `${baseURL}/work-orders/driver/${id}/complete`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      if (response.status === 401) {
-        await authStorage.clearSession();
-        router.replace('/login');
-      }
-      const err = new Error(`Request failed with status ${response.status}`);
-      (err as Error & { response?: { status: number; data?: unknown } }).response = {
-        status: response.status,
-        data: await response.json().catch(() => ({})),
-      };
-      throw err;
-    }
-    return { data: await response.json() };
-  },
+  ) => api.post<WorkOrder>(`/work-orders/driver/${id}/complete`, body),
 };
 
 export default api;

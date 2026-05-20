@@ -4,16 +4,10 @@ import {
   Inter_700Bold,
   useFonts,
 } from '@expo-google-fonts/inter';
-import { useSyncEngine } from '@/hooks/useSyncEngine';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Text, TextInput } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-
-function SyncEngineHost() {
-  useSyncEngine();
-  return null;
-}
 
 type TextDefaults = { allowFontScaling?: boolean; style?: unknown };
 type WithDefaultProps<T> = T & { defaultProps?: TextDefaults };
@@ -52,7 +46,6 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <SyncEngineHost />
       <StatusBar style="auto" />
       <Stack
         screenOptions={{

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import { colors } from '@/theme';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,7 +21,7 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <ActivityIndicator size="large" color="#0ea5e9" />
+      <ActivityIndicator size="large" color={colors.primary} />
     </SafeAreaView>
   );
 }

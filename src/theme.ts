@@ -1,0 +1,26 @@
+export const colors = {
+  primary:      '#059669',
+  primaryLight: '#d1fae5',
+  primaryDark:  '#047857',
+  appBg:        '#f1f5f9',
+  appText:      '#0f172a',
+
+  statusPending:    '#fbbf24',
+  statusInProgress: '#3b82f6',
+  statusDelivered:  '#10b981',
+  statusDone:       '#059669',
+  statusCanceled:   '#ef4444',
+  statusDefault:    '#6b7280',
+
+  surface:       '#ffffff',
+  textMuted:     '#666666',
+  textSubtle:    '#999999',
+  textSecondary: '#475569',
+  textSlate:     '#64748b',
+  borderLight:   '#ddd',
+  borderLighter: '#e2e8f0',
+  borderHint:    '#6ee7b7',
+  danger:        '#ef4444',
+  warning:       '#f59e0b',
+  mapsBlue:      '#4285F4',
+} as const;

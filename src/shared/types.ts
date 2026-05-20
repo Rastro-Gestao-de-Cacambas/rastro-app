@@ -1,5 +1,4 @@
 import {
-  DeliveryType,
   UserRole,
   DumpsterStatus,
   WorkOrderType,
@@ -128,7 +127,8 @@ export interface Yard {
 export interface Dumpster {
   id: string;
   code: string;
-  capacityM3: number;
+  capacityValue: number;
+  capacityUnit: string;
   status: DumpsterStatus;
   currentJobSiteId?: string;
   lastLat?: number;
@@ -141,24 +141,6 @@ export interface Dumpster {
   workOrders?: WorkOrder[];
 }
 
-export interface Delivery {
-  id: string;
-  type: DeliveryType;
-  dumpsterId: string;
-  jobSiteId: string;
-  driverId: string;
-  occurredAt: Date;
-  latitude: number;
-  longitude: number;
-  accuracy?: number;
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  dumpster?: Dumpster;
-  jobSite?: JobSite;
-  driver?: Driver;
-}
-
 export interface WorkOrder {
   id: string;
   type: WorkOrderType;
@@ -166,7 +148,6 @@ export interface WorkOrder {
   sequence: number;
   scheduledAt?: Date;
   returnDueDate?: Date;
-  isIndeterminate: boolean;
   observations?: string | null;
   driverId: string;
   vehicleId: string;
@@ -180,6 +161,7 @@ export interface WorkOrder {
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
+  archivedAt?: Date | null;
   updatedAt: Date;
   driver?: Driver;
   vehicle?: Vehicle;

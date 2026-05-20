@@ -1,8 +1,3 @@
-export enum DeliveryType {
-  DROP_OFF = 'DROP_OFF',
-  PICK_UP = 'PICK_UP',
-}
-
 export enum UserRole {
   ADMIN = 'ADMIN',
   DRIVER = 'DRIVER',
@@ -15,9 +10,8 @@ export enum CustomerType {
 
 export enum DumpsterStatus {
   AVAILABLE = 'AVAILABLE',
-  RESERVED = 'RESERVED',
   IN_USE = 'IN_USE',
-  IN_TRANSIT = 'IN_TRANSIT',
+  /** Caçamba com resíduos — aguardando viagem de descarte */
   WITH_RESIDUE = 'WITH_RESIDUE',
   MAINTENANCE = 'MAINTENANCE',
   INACTIVE = 'INACTIVE',
@@ -33,6 +27,7 @@ export enum WorkOrderType {
 export enum WorkOrderStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
+  DELIVERED = 'DELIVERED',
   DONE = 'DONE',
   CANCELED = 'CANCELED',
 }

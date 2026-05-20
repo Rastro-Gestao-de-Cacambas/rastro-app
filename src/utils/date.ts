@@ -30,7 +30,7 @@ export function formatWorkOrderDeliveryDuration(
 ): string | null {
   if (!startedAt) return null;
   const start = typeof startedAt === 'string' ? new Date(startedAt) : startedAt;
-  if (status === 'DONE' && completedAt) {
+  if ((status === 'DONE' || status === 'DELIVERED') && completedAt) {
     const end = typeof completedAt === 'string' ? new Date(completedAt) : completedAt;
     return formatDurationMs(end.getTime() - start.getTime());
   }

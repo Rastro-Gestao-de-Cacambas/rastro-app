@@ -1,12 +1,19 @@
 import { useAuth } from '@/hooks/useAuth';
-import { getAllWorkOrders } from '@/lib/db/workOrdersRepository';
-import { runSyncEngine } from '@/lib/sync/syncEngine';
-import { WorkOrder, WorkOrderStatus, WorkOrderType } from '@/shared';
+import { workOrdersApi } from '@/lib/api';
+import { WorkOrder, WorkOrderStatus } from '@/shared';
+import { colors } from '@/theme';
+import { getApiErrorMessage } from '@/utils/apiError';
+import { formatCpf } from '@/utils/cpf';
 import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
-import { getWorkOrderScheduledDateLabel } from '@/utils/work-order-labels';
+import {
+  getStatusColor,
+  getStatusLabel,
+  getTypeLabel,
+  getWorkOrderScheduledDateLabel,
+} from '@/utils/work-order-labels';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -18,11 +25,54 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function formatCpf(cpf: string | undefined): string {
-  if (!cpf) return '';
-  const digits = cpf.replace(/\D/g, '');
-  if (digits.length !== 11) return cpf;
-  return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>) {
+  const deliveryDuration = formatWorkOrderDeliveryDuration(
+    order.startedAt,
+    order.completedAt,
+    order.status,
+  );
+  return (
+    <TouchableOpacity
+      key={order.id}
+      style={styles.orderCard}
+      onPress={() => router.push(`/work-order-detail?id=${order.id}`)}
+    >
+      <View style={styles.orderHeader}>
+        <Text style={styles.orderSequence}>{order.sequence}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
+            {getStatusLabel(order.status)}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.orderType}>{getTypeLabel(order.type)}</Text>
+      {order.scheduledAt && (
+        <Text style={styles.orderScheduled}>
+          {getWorkOrderScheduledDateLabel(order.type)}: {formatDateBr(order.scheduledAt)}
+        </Text>
+      )}
+      <Text style={styles.orderInfo}>
+        {(order.dumpster?.code ?? '—') + ' - ' + (order.vehicle?.placa ?? '—')}
+      </Text>
+      {order.jobSite && (
+        <Text style={styles.orderAddress}>
+          {order.jobSite.name || 'Endereço'} - {order.jobSite.address}
+        </Text>
+      )}
+      {order.yard && <Text style={styles.orderAddress}>{order.yard.name}</Text>}
+      {deliveryDuration && (
+        <Text style={styles.orderSchedule}>
+          Tempo de entrega: {deliveryDuration}
+          {order.status === WorkOrderStatus.IN_PROGRESS ? ' (até agora)' : ''}
+        </Text>
+      )}
+      {order.startedAt && (
+        <Text style={styles.orderTime}>
+          Iniciado: {new Date(order.startedAt).toLocaleString('pt-BR')}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
 }
 
 export default function HomeScreen() {
@@ -32,18 +82,18 @@ export default function HomeScreen() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const isInitialMount = useRef(true);
+  const [error, setError] = useState<string | null>(null);
+  const hasLoaded = useRef(false);
 
   const loadWorkOrders = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
+    setError(null);
     try {
-      try {
-        await runSyncEngine();
-      } catch (error) {
-        console.error('Erro na sincronização:', error);
-      }
-      let local = await getAllWorkOrders();
-      setWorkOrders(local);
+      const res = await workOrdersApi.getMyOrders();
+      const sorted = res.data.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+      setWorkOrders(sorted);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Não foi possível carregar as tarefas. Verifique sua conexão.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -52,9 +102,12 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const showLoading = isInitialMount.current;
-      if (isInitialMount.current) isInitialMount.current = false;
-      loadWorkOrders(showLoading);
+      const silent = hasLoaded.current;
+      hasLoaded.current = true;
+      loadWorkOrders(silent);
+
+      const interval = setInterval(() => loadWorkOrders(true), 20000);
+      return () => clearInterval(interval);
     }, [loadWorkOrders]),
   );
 
@@ -68,55 +121,10 @@ export default function HomeScreen() {
     router.replace('/login');
   };
 
-  const getStatusLabel = (status: WorkOrderStatus) => {
-    switch (status) {
-      case 'PENDING':
-        return 'Pendente';
-      case 'IN_PROGRESS':
-        return 'Em Andamento';
-      case 'DONE':
-        return 'Concluída';
-      case 'CANCELED':
-        return 'Cancelada';
-      default:
-        return status;
-    }
-  };
-
-  const getTypeLabel = (type: WorkOrderType) => {
-    switch (type) {
-      case 'DROP_OFF':
-        return 'Entrega';
-      case 'PICK_UP':
-        return 'Retirada';
-      case 'EXCHANGE':
-        return 'Troca';
-      case 'DUMP':
-        return 'Outro';
-      default:
-        return type;
-    }
-  };
-
-  const getStatusColor = (status: WorkOrderStatus) => {
-    switch (status) {
-      case 'PENDING':
-        return '#fbbf24';
-      case 'IN_PROGRESS':
-        return '#3b82f6';
-      case 'DONE':
-        return '#10b981';
-      case 'CANCELED':
-        return '#ef4444';
-      default:
-        return '#6b7280';
-    }
-  };
-
   if (loading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <ActivityIndicator size="large" color="#0ea5e9" />
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -124,64 +132,9 @@ export default function HomeScreen() {
   const activeOrders = workOrders.filter(
     (wo) => wo.status === 'PENDING' || wo.status === 'IN_PROGRESS',
   );
-  const completedOrders = workOrders.filter((wo) => wo.status === 'DONE');
-
-  const renderOrderCard = (order: WorkOrder) => {
-    const deliveryDuration = formatWorkOrderDeliveryDuration(
-      order.startedAt,
-      order.completedAt,
-      order.status,
-    );
-    return (
-      <TouchableOpacity
-        key={order.id}
-        style={styles.orderCard}
-        onPress={() => router.push(`/work-order-detail?id=${order.id}`)}
-      >
-        <View style={styles.orderHeader}>
-          <Text style={styles.orderSequence}>{order.sequence}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(order.status) + '20' },
-            ]}
-          >
-            <Text
-              style={[styles.statusText, { color: getStatusColor(order.status) }]}
-            >
-              {getStatusLabel(order.status)}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.orderType}>{getTypeLabel(order.type)}</Text>
-        {order.scheduledAt && (
-          <Text style={styles.orderScheduled}>
-            {getWorkOrderScheduledDateLabel(order.type)}: {formatDateBr(order.scheduledAt)}
-          </Text>
-        )}
-        <Text style={styles.orderInfo}>
-          {(order.dumpster?.code ?? '—') + ' - ' + (order.vehicle?.placa ?? '—')}
-        </Text>
-        {order.jobSite && (
-          <Text style={styles.orderAddress}>
-            {order.jobSite.name || 'Endereço'} - {order.jobSite.address}
-          </Text>
-        )}
-        {order.yard && <Text style={styles.orderAddress}>{order.yard.name}</Text>}
-        {deliveryDuration && (
-          <Text style={styles.orderSchedule}>
-            Tempo de entrega: {deliveryDuration}
-            {order.status === WorkOrderStatus.IN_PROGRESS ? ' (até agora)' : ''}
-          </Text>
-        )}
-        {order.startedAt && (
-          <Text style={styles.orderTime}>
-            Iniciado: {new Date(order.startedAt).toLocaleString('pt-BR')}
-          </Text>
-        )}
-      </TouchableOpacity>
-    );
-  };
+  const completedOrders = workOrders.filter(
+    (wo) => wo.status === 'DONE' || wo.status === 'DELIVERED',
+  );
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
@@ -207,9 +160,18 @@ export default function HomeScreen() {
 
       <ScrollView
         style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        {workOrders.length === 0 ? (
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={() => loadWorkOrders(false)}>
+              <Text style={styles.retryText}>Tentar novamente</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!error && workOrders.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Nenhuma tarefa no momento</Text>
           </View>
@@ -218,18 +180,13 @@ export default function HomeScreen() {
             {activeOrders.length > 0 && (
               <View style={styles.sectionBlock}>
                 <Text style={styles.sectionHeading}>Em aberto</Text>
-                {activeOrders.map((o) => renderOrderCard(o))}
+                {activeOrders.map((o) => renderOrderCard(o, router))}
               </View>
             )}
             {completedOrders.length > 0 && (
-              <View
-                style={[
-                  styles.sectionBlock,
-                  activeOrders.length > 0 && styles.sectionBlockSpaced,
-                ]}
-              >
+              <View style={[styles.sectionBlock, activeOrders.length > 0 && styles.sectionBlockSpaced]}>
                 <Text style={styles.sectionHeading}>Concluídas</Text>
-                {completedOrders.map((o) => renderOrderCard(o))}
+                {completedOrders.map((o) => renderOrderCard(o, router))}
               </View>
             )}
           </>
@@ -242,10 +199,14 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.appBg,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
-    backgroundColor: '#0ea5e9',
+    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
@@ -258,14 +219,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Inter_700Bold',
-    color: '#fff',
+    color: colors.surface,
   },
   logoutButton: {
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
   logoutText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
   },
@@ -278,22 +239,40 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 8,
     marginBottom: 8,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: colors.primaryLight,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: colors.borderHint,
   },
   hintBarText: {
     fontSize: 13,
     fontFamily: 'Inter_600SemiBold',
-    color: '#0369a1',
+    color: colors.primaryDark,
     textAlign: 'center',
   },
   content: {
     flex: 1,
     padding: 15,
+  },
+  errorBanner: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#991b1b',
+    marginBottom: 8,
+  },
+  retryText: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.danger,
   },
   sectionBlock: {},
   sectionBlockSpaced: {
@@ -302,7 +281,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
-    color: '#64748b',
+    color: colors.textSlate,
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -315,10 +294,10 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textMuted,
   },
   orderCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 15,
     marginBottom: 10,
@@ -337,7 +316,7 @@ const styles = StyleSheet.create({
   orderSequence: {
     fontSize: 16,
     fontFamily: 'Inter_700Bold',
-    color: '#666',
+    color: colors.textMuted,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -351,33 +330,33 @@ const styles = StyleSheet.create({
   orderType: {
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
-    color: '#333',
+    color: colors.appText,
     marginBottom: 4,
   },
   orderScheduled: {
     fontSize: 13,
-    color: '#475569',
+    color: colors.textSecondary,
     marginBottom: 6,
     fontFamily: 'Inter_600SemiBold',
   },
   orderInfo: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textMuted,
     marginBottom: 4,
   },
   orderAddress: {
     fontSize: 12,
-    color: '#999',
+    color: colors.textSubtle,
     marginBottom: 4,
   },
   orderSchedule: {
     fontSize: 11,
-    color: '#999',
+    color: colors.textSubtle,
     marginTop: 4,
   },
   orderTime: {
     fontSize: 11,
-    color: '#0ea5e9',
+    color: colors.primary,
     marginTop: 4,
   },
 });

@@ -1,5 +1,4 @@
 import {
-  DeliveryType,
   UserRole,
   WorkOrderType,
   WorkOrderStatus,
@@ -38,19 +37,6 @@ export interface AuthResponseDto {
   };
 }
 
-export interface CreateDeliveryDto {
-  type: DeliveryType;
-  dumpsterId: string;
-  jobSiteId: string;
-  latitude: number;
-  longitude: number;
-  accuracy?: number;
-  notes?: string;
-}
-
-export interface UpdateDeliveryDto {
-  notes?: string;
-}
 
 export interface CreateDumpsterDto {
   code: string;

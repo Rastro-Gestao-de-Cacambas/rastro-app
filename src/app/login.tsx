@@ -2,6 +2,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/lib/api';
 import { authStorage } from '@/lib/authStorage';
 import { LoginDto } from '@/shared';
+import { colors } from '@/theme';
+import { getApiErrorMessage } from '@/utils/apiError';
+import { maskCpfInput } from '@/utils/cpf';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -18,22 +21,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const formatCpf = (value: string): string => {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-};
-
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
-  const [formData, setFormData] = useState<LoginDto>({
-    cpf: '',
-    password: '',
-  });
+  const [formData, setFormData] = useState<LoginDto>({ cpf: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +37,7 @@ export default function LoginScreen() {
       ]);
       setFormData((prev) => ({
         ...prev,
-        ...(cpfDigits ? { cpf: formatCpf(cpfDigits) } : {}),
+        ...(cpfDigits ? { cpf: maskCpfInput(cpfDigits) } : {}),
         ...(password ? { password } : {}),
       }));
     })();
@@ -62,11 +53,7 @@ export default function LoginScreen() {
       }
       router.replace('/home');
     } catch (error: unknown) {
-      const message =
-        error && typeof error === 'object' && 'response' in error
-          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
-          : undefined;
-      Alert.alert('Erro ao fazer login', message || 'Credenciais inválidas');
+      Alert.alert('Erro ao fazer login', getApiErrorMessage(error, 'Credenciais inválidas'));
     } finally {
       setLoading(false);
     }
@@ -91,9 +78,9 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="CPF"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSubtle}
                 value={formData.cpf}
-                onChangeText={(text) => setFormData({ ...formData, cpf: formatCpf(text) })}
+                onChangeText={(text) => setFormData({ ...formData, cpf: maskCpfInput(text) })}
                 keyboardType="numeric"
                 maxLength={14}
               />
@@ -102,7 +89,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={styles.passwordInput}
                   placeholder="Senha"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={colors.textSubtle}
                   value={formData.password}
                   onChangeText={(text) => setFormData({ ...formData, password: text })}
                   secureTextEntry={!showPassword}
@@ -113,7 +100,7 @@ export default function LoginScreen() {
                   style={styles.passwordToggle}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color="#666" />
+                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
 
@@ -123,7 +110,7 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
               >
                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                  {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
+                  {rememberMe && <Ionicons name="checkmark" size={14} color={colors.surface} />}
                 </View>
                 <Text style={styles.rememberText}>Lembrar senha</Text>
               </TouchableOpacity>
@@ -146,7 +133,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.appBg,
   },
   keyboardView: {
     flex: 1,
@@ -157,7 +144,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   content: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 20,
     shadowColor: '#000',
@@ -171,31 +158,31 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     textAlign: 'center',
     marginBottom: 8,
-    color: '#0ea5e9',
+    color: colors.primary,
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 30,
-    color: '#666',
+    color: colors.textMuted,
   },
   form: {
     gap: 15,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.borderLight,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
-    color: '#111',
+    backgroundColor: colors.surface,
+    color: colors.appText,
   },
   passwordInputContainer: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.borderLight,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     paddingRight: 10,
@@ -204,7 +191,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     fontSize: 16,
-    color: '#111',
+    color: colors.appText,
   },
   passwordToggle: {
     padding: 4,
@@ -219,21 +206,21 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#0ea5e9',
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#0ea5e9',
+    backgroundColor: colors.primary,
   },
   rememberText: {
     marginLeft: 10,
     fontSize: 15,
-    color: '#666',
+    color: colors.textMuted,
     flexShrink: 1,
   },
   button: {
-    backgroundColor: '#0ea5e9',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     padding: 14,
     minHeight: 52,
@@ -245,7 +232,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 16,
     fontWeight: '600',
     width: '100%',
