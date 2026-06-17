@@ -1,6 +1,7 @@
 import { useLocation } from '@/hooks/useLocation';
-import { dumpstersApi, workOrdersApi } from '@/lib/api';
-import { Dumpster, DumpsterStatus, WorkOrder, WorkOrderType } from '@/shared';
+import { workOrdersApi } from '@/lib/api';
+import { registerPickerCallback } from '@/lib/dumpster-picker-callback';
+import { WorkOrder, WorkOrderType } from '@/shared';
 import { colors } from '@/theme';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
@@ -42,8 +43,8 @@ export default function WorkOrderDetailScreen() {
   const { location, getCurrentLocation, loading: locationLoading } = useLocation();
   const [notes, setNotes] = useState('');
   const [timer, setTimer] = useState<number>(0);
-  const [availableDumpsters, setAvailableDumpsters] = useState<Dumpster[]>([]);
   const [selectedDumpsterId, setSelectedDumpsterId] = useState<string | null>(null);
+  const [selectedDumpsterCode, setSelectedDumpsterCode] = useState<string | null>(null);
 
   useEffect(() => {
     void loadWorkOrder();
@@ -54,25 +55,12 @@ export default function WorkOrderDetailScreen() {
     workOrder.type === WorkOrderType.DROP_OFF &&
     !workOrder.dumpsterId;
 
+  // Reset dumpster selection whenever the work order changes or the choice is no longer needed
   useEffect(() => {
     if (!needsDriverDumpsterChoice) {
-      setAvailableDumpsters([]);
       setSelectedDumpsterId(null);
-      return;
+      setSelectedDumpsterCode(null);
     }
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await dumpstersApi.getAll();
-        const list = res.data.filter((d) => d.status === DumpsterStatus.AVAILABLE);
-        if (!cancelled) setAvailableDumpsters(list);
-      } catch {
-        if (!cancelled) setAvailableDumpsters([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, [needsDriverDumpsterChoice, workOrder?.id]);
 
   useEffect(() => {
@@ -122,6 +110,14 @@ export default function WorkOrderDetailScreen() {
     } finally {
       setStarting(false);
     }
+  };
+
+  const openDumpsterPicker = () => {
+    registerPickerCallback((id, code) => {
+      setSelectedDumpsterId(id);
+      setSelectedDumpsterCode(code);
+    });
+    router.push('/dumpster-picker');
   };
 
   const handleGetLocation = async () => {
@@ -332,32 +328,33 @@ export default function WorkOrderDetailScreen() {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Caçamba para esta entrega *</Text>
                 <Text style={styles.subValue}>
-                  O pedido foi aberto sem número. Escolha a caçamba disponível antes de dar partida.
+                  O pedido foi aberto sem número. Selecione a caçamba antes de dar partida.
                 </Text>
-                {availableDumpsters.length === 0 ? (
-                  <Text style={styles.subValue}>Carregando caçambas disponíveis…</Text>
-                ) : (
-                  availableDumpsters.map((d) => (
-                    <TouchableOpacity
-                      key={d.id}
-                      style={[
-                        styles.dumpsterOption,
-                        selectedDumpsterId === d.id && styles.dumpsterOptionSelected,
-                      ]}
-                      onPress={() => setSelectedDumpsterId(d.id)}
-                    >
-                      <Text
-                        style={
-                          selectedDumpsterId === d.id
-                            ? styles.dumpsterOptionTextSelected
-                            : styles.dumpsterOptionText
-                        }
-                      >
-                        {d.code}
-                      </Text>
-                    </TouchableOpacity>
-                  ))
-                )}
+                <TouchableOpacity
+                  style={[
+                    styles.pickerButton,
+                    selectedDumpsterId && styles.pickerButtonSelected,
+                  ]}
+                  onPress={openDumpsterPicker}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={selectedDumpsterId ? 'checkmark-circle' : 'search'}
+                    size={22}
+                    color={selectedDumpsterId ? colors.primaryDark : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.pickerButtonText,
+                      selectedDumpsterId && styles.pickerButtonTextSelected,
+                    ]}
+                  >
+                    {selectedDumpsterCode ?? 'Toque para buscar a caçamba…'}
+                  </Text>
+                  {selectedDumpsterId && (
+                    <Ionicons name="chevron-forward" size={18} color={colors.primaryDark} />
+                  )}
+                </TouchableOpacity>
               </View>
             )}
 
@@ -398,7 +395,12 @@ export default function WorkOrderDetailScreen() {
                   {location && (
                     <Text style={styles.locationText}>
                       {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                      {location.accuracy && ` (${location.accuracy.toFixed(0)}m)`}
+                      {location.accuracy != null && ` (${location.accuracy.toFixed(0)}m)`}
+                    </Text>
+                  )}
+                  {location?.accuracy != null && location.accuracy > 50 && (
+                    <Text style={styles.locationWarning}>
+                      Precisão insuficiente ({location.accuracy.toFixed(0)}m). Máx. permitido: 50m. Tente capturar novamente ao ar livre.
                     </Text>
                   )}
                 </View>
@@ -587,26 +589,32 @@ const styles = StyleSheet.create({
   startButtonDisabled: {
     backgroundColor: colors.textSecondary,
   },
-  dumpsterOption: {
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: colors.borderLighter,
-    marginBottom: 8,
+    backgroundColor: colors.appBg,
+    marginTop: 8,
   },
-  dumpsterOptionSelected: {
+  pickerButtonSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,
   },
-  dumpsterOptionText: {
+  pickerButtonText: {
+    flex: 1,
     fontSize: 16,
-    color: colors.appText,
-    fontFamily: 'Inter_600SemiBold',
+    color: colors.textMuted,
+    fontFamily: 'Inter_400Regular',
   },
-  dumpsterOptionTextSelected: {
-    fontSize: 16,
+  pickerButtonTextSelected: {
     color: colors.primaryDark,
     fontFamily: 'Inter_700Bold',
+    fontSize: 18,
   },
   section: {
     backgroundColor: colors.surface,
@@ -636,6 +644,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 5,
+  },
+  locationWarning: {
+    fontSize: 12,
+    color: colors.danger,
+    marginTop: 4,
   },
   textArea: {
     borderWidth: 1,

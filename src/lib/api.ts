@@ -46,7 +46,12 @@ export const authApi = {
 };
 
 export const dumpstersApi = {
-  getAll: () => api.get<Dumpster[]>('/dumpsters'),
+  // Backend always returns { data, total } — even without page param
+  getAll: () => api.get<{ data: Dumpster[]; total: number }>('/dumpsters'),
+  getAvailable: () =>
+    api.get<{ data: Dumpster[]; total: number }>('/dumpsters', {
+      params: { status: 'AVAILABLE' },
+    }),
   getById: (id: string) => api.get<Dumpster>(`/dumpsters/${id}`),
 };
 

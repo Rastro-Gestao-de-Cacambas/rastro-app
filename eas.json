@@ -10,14 +10,14 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://eco-server-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://rastro-api-production-1941.up.railway.app"
       },
       "ios": { "simulator": false },
       "android": { "buildType": "apk" }
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://eco-server-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://rastro-api-production-1941.up.railway.app"
       },
       "ios": { "simulator": false },
       "android": { "buildType": "apk" }
