@@ -54,6 +54,9 @@ function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>)
       <Text style={styles.orderInfo}>
         {(order.dumpster?.code ?? '—') + ' - ' + (order.vehicle?.placa ?? '—')}
       </Text>
+      {order.jobSite?.customer && (
+        <Text style={styles.orderCustomer}>{order.jobSite.customer.name}</Text>
+      )}
       {order.jobSite && (
         <Text style={styles.orderAddress}>
           {order.jobSite.name || 'Endereço'} - {order.jobSite.address}
@@ -343,6 +346,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
     marginBottom: 4,
+  },
+  orderCustomer: {
+    fontSize: 14,
+    fontFamily: 'Inter_700Bold',
+    color: colors.appText,
+    marginBottom: 2,
   },
   orderAddress: {
     fontSize: 12,

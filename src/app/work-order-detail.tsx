@@ -1,7 +1,7 @@
 import { useLocation } from '@/hooks/useLocation';
 import { workOrdersApi } from '@/lib/api';
 import { registerPickerCallback } from '@/lib/dumpster-picker-callback';
-import { WorkOrder, WorkOrderType } from '@/shared';
+import { WorkOrder, WorkOrderStatus, WorkOrderType } from '@/shared';
 import { colors } from '@/theme';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
@@ -165,13 +165,14 @@ export default function WorkOrderDetailScreen() {
 
   const getDestinationQuery = (): string | null => {
     if (!workOrder) return null;
+    if (workOrder.status === WorkOrderStatus.PENDING) return null;
+    if (workOrder.type === WorkOrderType.DUMP) return null;
     if (workOrder.jobSite?.address) {
       const js = workOrder.jobSite;
       return [js.address, js.city, js.state, 'Brasil'].filter(Boolean).join(', ');
     }
     if (workOrder.yard?.address) {
-      const y = workOrder.yard;
-      return [y.address, 'Brasil'].filter(Boolean).join(', ');
+      return [workOrder.yard.address, 'Brasil'].filter(Boolean).join(', ');
     }
     return null;
   };
@@ -288,15 +289,19 @@ export default function WorkOrderDetailScreen() {
               </View>
             ) : null}
 
+            {workOrder.jobSite?.customer && (
+              <View style={styles.infoSection}>
+                <Text style={styles.label}>Cliente</Text>
+                <Text style={styles.value}>{workOrder.jobSite.customer.name}</Text>
+              </View>
+            )}
+
             {workOrder.jobSite && (
               <View style={styles.infoSection}>
                 <Text style={styles.label}>Obra</Text>
                 <Text style={styles.value}>
                   {workOrder.jobSite.name || 'Endereço'} - {workOrder.jobSite.address}
                 </Text>
-                {workOrder.jobSite.customer && (
-                  <Text style={styles.subValue}>Cliente: {workOrder.jobSite.customer.name}</Text>
-                )}
               </View>
             )}
 
