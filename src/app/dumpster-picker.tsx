@@ -3,7 +3,7 @@ import { invokePickerCallback } from '@/lib/dumpster-picker-callback';
 import { Dumpster } from '@/shared';
 import { colors } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,8 +17,29 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+type PickerMode = 'OUT' | 'IN' | 'DUMP';
+
+const HEADER_TITLE: Record<PickerMode, string> = {
+  OUT: 'Selecionar Caçamba',
+  IN: 'Selecionar Caçamba a Retirar',
+  DUMP: 'Selecionar Caçamba p/ Descarte',
+};
+
+const EMPTY_TITLE: Record<PickerMode, string> = {
+  OUT: 'Nenhuma caçamba disponível',
+  IN: 'Nenhuma caçamba locada neste endereço',
+  DUMP: 'Nenhuma caçamba para descarte',
+};
+
 export default function DumpsterPickerScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string; jobSiteId?: string; excludeIds?: string }>();
+  const mode: PickerMode = params.mode === 'IN' || params.mode === 'DUMP' ? params.mode : 'OUT';
+  const jobSiteId = params.jobSiteId;
+  const excludeIds = useMemo(
+    () => new Set((params.excludeIds ?? '').split(',').filter(Boolean)),
+    [params.excludeIds],
+  );
   const inputRef = useRef<TextInput>(null);
 
   const [dumpsters, setDumpsters] = useState<Dumpster[]>([]);
@@ -28,8 +49,14 @@ export default function DumpsterPickerScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      setLoading(true);
       try {
-        const res = await dumpstersApi.getAvailable();
+        const res =
+          mode === 'IN'
+            ? await dumpstersApi.getEligibleForPickup({ jobSiteId })
+            : mode === 'DUMP'
+              ? await dumpstersApi.getEligibleForDump()
+              : await dumpstersApi.getAvailable();
         if (!cancelled) setDumpsters(res.data.data ?? []);
       } catch {
         if (!cancelled) setDumpsters([]);
@@ -40,7 +67,7 @@ export default function DumpsterPickerScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mode, jobSiteId]);
 
   // Focus the input after a short delay so the keyboard opens naturally
   useEffect(() => {
@@ -50,9 +77,10 @@ export default function DumpsterPickerScreen() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toUpperCase();
-    if (!q) return dumpsters;
-    return dumpsters.filter((d) => d.code.toUpperCase().includes(q));
-  }, [dumpsters, query]);
+    const withoutUsed = dumpsters.filter((d) => !excludeIds.has(d.id));
+    if (!q) return withoutUsed;
+    return withoutUsed.filter((d) => d.code.toUpperCase().includes(q));
+  }, [dumpsters, query, excludeIds]);
 
   const handleSelect = (dumpster: Dumpster) => {
     invokePickerCallback(dumpster.id, dumpster.code);
@@ -70,7 +98,7 @@ export default function DumpsterPickerScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Selecionar Caçamba</Text>
+        <Text style={styles.headerTitle}>{HEADER_TITLE[mode]}</Text>
       </View>
 
       {/* Search bar */}
@@ -98,13 +126,13 @@ export default function DumpsterPickerScreen() {
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Carregando caçambas disponíveis…</Text>
+          <Text style={styles.loadingText}>Carregando caçambas…</Text>
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.centered}>
           <Ionicons name="search-outline" size={48} color={colors.borderLight} />
           <Text style={styles.emptyTitle}>
-            {query.trim() ? 'Nenhuma caçamba encontrada' : 'Nenhuma caçamba disponível'}
+            {query.trim() ? 'Nenhuma caçamba encontrada' : EMPTY_TITLE[mode]}
           </Text>
           {query.trim() ? (
             <Text style={styles.emptySubtitle}>
@@ -142,7 +170,7 @@ export default function DumpsterPickerScreen() {
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             {filtered.length}{' '}
-            {filtered.length === 1 ? 'caçamba disponível' : 'caçambas disponíveis'}
+            {filtered.length === 1 ? 'caçamba na lista' : 'caçambas na lista'}
             {query.trim() ? ` para "${query.trim()}"` : ''}
           </Text>
         </View>

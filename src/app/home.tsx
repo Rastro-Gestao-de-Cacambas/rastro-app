@@ -25,6 +25,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+function boxesSummary(order: WorkOrder): string {
+  const boxes = order.workOrderDumpsters ?? [];
+  if (boxes.length === 0) return '—';
+  if (boxes.length === 1) return boxes[0].dumpster?.code ?? 'A definir';
+  const assignedCount = boxes.filter((b) => b.dumpster?.code).length;
+  return assignedCount < boxes.length
+    ? `${boxes.length} caçambas (${assignedCount} definida${assignedCount === 1 ? '' : 's'})`
+    : `${boxes.length} caçambas`;
+}
+
 function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>) {
   const deliveryDuration = formatWorkOrderDeliveryDuration(
     order.startedAt,
@@ -52,7 +62,7 @@ function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>)
         </Text>
       )}
       <Text style={styles.orderInfo}>
-        {(order.dumpster?.code ?? '—') + ' - ' + (order.vehicle?.placa ?? '—')}
+        {boxesSummary(order) + ' - ' + (order.vehicle?.placa ?? '—')}
       </Text>
       {order.jobSite?.customer && (
         <Text style={styles.orderCustomer}>{order.jobSite.customer.name}</Text>

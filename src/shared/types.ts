@@ -3,6 +3,7 @@ import {
   DumpsterStatus,
   WorkOrderType,
   WorkOrderStatus,
+  WorkOrderDumpsterRole,
   CustomerType,
   VehicleStatus,
   DriverStatus,
@@ -151,10 +152,11 @@ export interface WorkOrder {
   observations?: string | null;
   driverId: string;
   vehicleId: string;
-  dumpsterId: string | null;
-  /** Troca: caçamba nova a entregar */
+  /** @deprecated substituído por workOrderDumpsters; mantido só para leitura histórica. */
+  dumpsterId?: string | null;
+  /** @deprecated substituído por workOrderDumpsters; mantido só para leitura histórica. */
   exchangeDumpsterId?: string | null;
-  /** Troca em duas etapas: 1 = entregar nova, 2 = retirar antiga */
+  /** Troca em duas etapas: 1 = entregar nova(s), 2 = retirar antiga(s) */
   exchangeLeg?: number | null;
   jobSiteId?: string;
   yardId?: string;
@@ -165,11 +167,32 @@ export interface WorkOrder {
   updatedAt: Date;
   driver?: Driver;
   vehicle?: Vehicle;
+  /** @deprecated ver workOrderDumpsters */
   dumpster?: Dumpster;
+  /** @deprecated ver workOrderDumpsters */
   exchangeDumpster?: Dumpster;
   jobSite?: JobSite;
   yard?: Yard;
   proofs?: WorkOrderProof[];
+  workOrderDumpsters?: WorkOrderDumpster[];
+}
+
+/**
+ * Uma caixa (caçamba) dentro de um pedido.
+ */
+export interface WorkOrderDumpster {
+  id: string;
+  workOrderId: string;
+  /** Nula = não atribuída pelo admin; motorista declara antes de iniciar/concluir. */
+  dumpsterId?: string | null;
+  dumpster?: Dumpster | null;
+  role: WorkOrderDumpsterRole;
+  /** Ordem de exibição da caixa dentro do pedido. */
+  position: number;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface WorkOrderProof {

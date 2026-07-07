@@ -1,14 +1,14 @@
 import { useLocation } from '@/hooks/useLocation';
 import { workOrdersApi } from '@/lib/api';
 import { registerPickerCallback } from '@/lib/dumpster-picker-callback';
-import { WorkOrder, WorkOrderStatus, WorkOrderType } from '@/shared';
+import { WorkOrder, WorkOrderDumpster, WorkOrderDumpsterRole, WorkOrderStatus, WorkOrderType } from '@/shared';
 import { colors } from '@/theme';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
 import { getTypeLabel, getWorkOrderScheduledDateLabel } from '@/utils/work-order-labels';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -43,25 +43,35 @@ export default function WorkOrderDetailScreen() {
   const { location, getCurrentLocation, loading: locationLoading } = useLocation();
   const [notes, setNotes] = useState('');
   const [timer, setTimer] = useState<number>(0);
-  const [selectedDumpsterId, setSelectedDumpsterId] = useState<string | null>(null);
-  const [selectedDumpsterCode, setSelectedDumpsterCode] = useState<string | null>(null);
+  const [assignments, setAssignments] = useState<Record<string, { id: string; code: string }>>({});
+
+  const loadWorkOrder = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await workOrdersApi.getById(orderId);
+      setWorkOrder(res.data);
+    } catch {
+      Alert.alert('Tarefa', 'Não foi possível carregar esta tarefa. Volte à lista e tente novamente.');
+      router.back();
+    } finally {
+      setLoading(false);
+    }
+  }, [orderId, router]);
 
   useEffect(() => {
     void loadWorkOrder();
-  }, [orderId]);
+  }, [loadWorkOrder]);
 
-  const needsDriverDumpsterChoice =
-    workOrder?.status === 'PENDING' &&
-    workOrder.type === WorkOrderType.DROP_OFF &&
-    !workOrder.dumpsterId;
+  const boxes = workOrder?.workOrderDumpsters ?? [];
+  const unassignedBoxes = boxes.filter((b) => !b.dumpsterId);
+  const allBoxesAssigned = unassignedBoxes.every((b) => assignments[b.id]);
 
-  // Reset dumpster selection whenever the work order changes or the choice is no longer needed
+  // Reset atribuições sempre que trocar de pedido ou não houver mais caixas para declarar
   useEffect(() => {
-    if (!needsDriverDumpsterChoice) {
-      setSelectedDumpsterId(null);
-      setSelectedDumpsterCode(null);
+    if (unassignedBoxes.length === 0) {
+      setAssignments({});
     }
-  }, [needsDriverDumpsterChoice, workOrder?.id]);
+  }, [workOrder?.id, unassignedBoxes.length]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
@@ -77,31 +87,19 @@ export default function WorkOrderDetailScreen() {
     };
   }, [workOrder?.status, workOrder?.startedAt]);
 
-  const loadWorkOrder = async () => {
-    setLoading(true);
-    try {
-      const res = await workOrdersApi.getById(orderId);
-      setWorkOrder(res.data);
-    } catch {
-      Alert.alert('Tarefa', 'Não foi possível carregar esta tarefa. Volte à lista e tente novamente.');
-      router.back();
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleStart = async () => {
     if (!workOrder) return;
-    if (needsDriverDumpsterChoice && !selectedDumpsterId) {
-      Alert.alert('Caçamba', 'Selecione o número da caçamba antes de iniciar.');
+    if (unassignedBoxes.length > 0 && !allBoxesAssigned) {
+      Alert.alert('Caçamba', 'Selecione a caçamba para todas as caixas antes de iniciar.');
       return;
     }
     setStarting(true);
     try {
-      const body =
-        needsDriverDumpsterChoice && selectedDumpsterId
-          ? { dumpsterId: selectedDumpsterId }
-          : undefined;
+      const boxAssignments = unassignedBoxes.map((box) => ({
+        workOrderDumpsterId: box.id,
+        dumpsterId: assignments[box.id]!.id,
+      }));
+      const body = boxAssignments.length > 0 ? { boxAssignments } : undefined;
       const res = await workOrdersApi.start(workOrder.id, body);
       setWorkOrder(res.data);
       Alert.alert('Sucesso', 'Tarefa iniciada!');
@@ -112,12 +110,33 @@ export default function WorkOrderDetailScreen() {
     }
   };
 
-  const openDumpsterPicker = () => {
+  const openBoxPicker = (box: WorkOrderDumpster) => {
     registerPickerCallback((id, code) => {
-      setSelectedDumpsterId(id);
-      setSelectedDumpsterCode(code);
+      setAssignments((prev) => ({ ...prev, [box.id]: { id, code } }));
     });
-    router.push('/dumpster-picker');
+    const mode =
+      box.role === WorkOrderDumpsterRole.OUT
+        ? 'OUT'
+        : workOrder?.type === WorkOrderType.DUMP
+          ? 'DUMP'
+          : 'IN';
+    // Caçambas já definidas (por outras caixas já atribuídas ou já declaradas nesta sessão)
+    // não podem ser escolhidas de novo para esta caixa.
+    const usedDumpsterIds = new Set<string>();
+    for (const b of boxes) {
+      if (b.dumpsterId) usedDumpsterIds.add(b.dumpsterId);
+    }
+    for (const [boxId, picked] of Object.entries(assignments)) {
+      if (boxId !== box.id) usedDumpsterIds.add(picked.id);
+    }
+    const query = new URLSearchParams({ mode });
+    if (mode === 'IN' && workOrder?.jobSiteId) {
+      query.set('jobSiteId', workOrder.jobSiteId);
+    }
+    if (usedDumpsterIds.size > 0) {
+      query.set('excludeIds', Array.from(usedDumpsterIds).join(','));
+    }
+    router.push(`/dumpster-picker?${query.toString()}`);
   };
 
   const handleGetLocation = async () => {
@@ -256,11 +275,35 @@ export default function WorkOrderDetailScreen() {
             </View>
 
             <View style={styles.infoSection}>
-              <Text style={styles.label}>Caçamba</Text>
-              <Text style={styles.value}>
-                {workOrder.dumpster?.code ??
-                  (workOrder.type === WorkOrderType.DROP_OFF ? 'A definir ao iniciar' : '—')}
-              </Text>
+              <Text style={styles.label}>{boxes.length > 1 ? 'Caçambas' : 'Caçamba'}</Text>
+              {boxes.length === 0 ? (
+                <Text style={styles.value}>—</Text>
+              ) : workOrder.type === WorkOrderType.EXCHANGE ? (
+                <>
+                  <Text style={styles.subValue}>Entregar</Text>
+                  {boxes
+                    .filter((b) => b.role === WorkOrderDumpsterRole.OUT)
+                    .map((b) => (
+                      <Text key={b.id} style={styles.value}>
+                        {b.dumpster?.code ?? 'A definir ao iniciar'}
+                      </Text>
+                    ))}
+                  <Text style={[styles.subValue, { marginTop: 8 }]}>Retirar</Text>
+                  {boxes
+                    .filter((b) => b.role === WorkOrderDumpsterRole.IN)
+                    .map((b) => (
+                      <Text key={b.id} style={styles.value}>
+                        {b.dumpster?.code ?? 'A definir ao iniciar'}
+                      </Text>
+                    ))}
+                </>
+              ) : (
+                boxes.map((b) => (
+                  <Text key={b.id} style={styles.value}>
+                    {b.dumpster?.code ?? 'A definir ao iniciar'}
+                  </Text>
+                ))
+              )}
             </View>
 
             <View style={styles.infoSection}>
@@ -329,37 +372,45 @@ export default function WorkOrderDetailScreen() {
               </View>
             )}
 
-            {workOrder.status === 'PENDING' && needsDriverDumpsterChoice && (
+            {workOrder.status === 'PENDING' && unassignedBoxes.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Caçamba para esta entrega *</Text>
-                <Text style={styles.subValue}>
-                  O pedido foi aberto sem número. Selecione a caçamba antes de dar partida.
+                <Text style={styles.sectionTitle}>
+                  {unassignedBoxes.length > 1 ? 'Caçambas para esta etapa *' : 'Caçamba para esta etapa *'}
                 </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.pickerButton,
-                    selectedDumpsterId && styles.pickerButtonSelected,
-                  ]}
-                  onPress={openDumpsterPicker}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons
-                    name={selectedDumpsterId ? 'checkmark-circle' : 'search'}
-                    size={22}
-                    color={selectedDumpsterId ? colors.primaryDark : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.pickerButtonText,
-                      selectedDumpsterId && styles.pickerButtonTextSelected,
-                    ]}
-                  >
-                    {selectedDumpsterCode ?? 'Toque para buscar a caçamba…'}
-                  </Text>
-                  {selectedDumpsterId && (
-                    <Ionicons name="chevron-forward" size={18} color={colors.primaryDark} />
-                  )}
-                </TouchableOpacity>
+                <Text style={styles.subValue}>
+                  O pedido foi aberto sem número. Selecione a(s) caçamba(s) antes de dar partida.
+                </Text>
+                {unassignedBoxes.map((box) => {
+                  const picked = assignments[box.id];
+                  const placeholder =
+                    workOrder.type === WorkOrderType.EXCHANGE
+                      ? box.role === WorkOrderDumpsterRole.OUT
+                        ? 'A entregar — toque para buscar…'
+                        : 'A retirar — toque para buscar…'
+                      : 'Toque para buscar a caçamba…';
+                  return (
+                    <TouchableOpacity
+                      key={box.id}
+                      style={[styles.pickerButton, picked && styles.pickerButtonSelected]}
+                      onPress={() => openBoxPicker(box)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={picked ? 'checkmark-circle' : 'search'}
+                        size={22}
+                        color={picked ? colors.primaryDark : colors.textMuted}
+                      />
+                      <Text
+                        style={[styles.pickerButtonText, picked && styles.pickerButtonTextSelected]}
+                      >
+                        {picked?.code ?? placeholder}
+                      </Text>
+                      {picked && (
+                        <Ionicons name="chevron-forward" size={18} color={colors.primaryDark} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
 
@@ -367,10 +418,10 @@ export default function WorkOrderDetailScreen() {
               <TouchableOpacity
                 style={[
                   styles.startButton,
-                  needsDriverDumpsterChoice && !selectedDumpsterId && styles.startButtonDisabled,
+                  unassignedBoxes.length > 0 && !allBoxesAssigned && styles.startButtonDisabled,
                 ]}
                 onPress={handleStart}
-                disabled={starting || (needsDriverDumpsterChoice && !selectedDumpsterId)}
+                disabled={starting || (unassignedBoxes.length > 0 && !allBoxesAssigned)}
               >
                 {starting ? (
                   <ActivityIndicator color={colors.surface} />

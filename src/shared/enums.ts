@@ -32,6 +32,16 @@ export enum WorkOrderStatus {
   CANCELED = 'CANCELED',
 }
 
+/**
+ * Direção de uma caixa (caçamba) dentro do pedido.
+ * OUT = fica IN_USE no endereço (entrega / caçamba nova da troca)
+ * IN  = sai do lugar onde estava (retirada / caçamba antiga da troca / descarte)
+ */
+export enum WorkOrderDumpsterRole {
+  OUT = 'OUT',
+  IN = 'IN',
+}
+
 export enum VehicleStatus {
   AVAILABLE = 'AVAILABLE',
   IN_USE = 'IN_USE',

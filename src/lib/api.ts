@@ -52,14 +52,26 @@ export const dumpstersApi = {
     api.get<{ data: Dumpster[]; total: number }>('/dumpsters', {
       params: { status: 'AVAILABLE' },
     }),
+  /** Caçambas locadas (IN_USE) num endereço — usado ao declarar uma caixa "a retirar". */
+  getEligibleForPickup: (params: { jobSiteId?: string }) =>
+    api.get<{ data: Dumpster[]; total: number }>('/dumpsters', {
+      params: { status: 'IN_USE', ...(params.jobSiteId ? { jobSiteId: params.jobSiteId } : {}) },
+    }),
+  /** Caçambas com resíduo (WITH_RESIDUE) — usado ao declarar uma caixa de descarte. */
+  getEligibleForDump: () =>
+    api.get<{ data: Dumpster[]; total: number }>('/dumpsters', {
+      params: { status: 'WITH_RESIDUE' },
+    }),
   getById: (id: string) => api.get<Dumpster>(`/dumpsters/${id}`),
 };
 
 export const workOrdersApi = {
   getMyOrders: () => api.get<WorkOrder[]>('/work-orders/driver'),
   getById: (id: string) => api.get<WorkOrder>(`/work-orders/driver/${id}`),
-  start: (id: string, body?: { dumpsterId?: string }) =>
-    api.post<WorkOrder>(`/work-orders/driver/${id}/start`, body ?? {}),
+  start: (
+    id: string,
+    body?: { boxAssignments?: { workOrderDumpsterId: string; dumpsterId: string }[] },
+  ) => api.post<WorkOrder>(`/work-orders/driver/${id}/start`, body ?? {}),
   complete: (
     id: string,
     body: {

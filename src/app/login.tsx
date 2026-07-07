@@ -31,14 +31,10 @@ export default function LoginScreen() {
 
   useEffect(() => {
     (async () => {
-      const [cpfDigits, password] = await Promise.all([
-        authStorage.getSavedCpf(),
-        authStorage.getSavedPassword(),
-      ]);
+      const cpfDigits = await authStorage.getSavedCpf();
       setFormData((prev) => ({
         ...prev,
         ...(cpfDigits ? { cpf: maskCpfInput(cpfDigits) } : {}),
-        ...(password ? { password } : {}),
       }));
     })();
   }, []);
@@ -49,7 +45,7 @@ export default function LoginScreen() {
       const response = await authApi.login(formData);
       await login(response.accessToken, response.user, rememberMe);
       if (rememberMe) {
-        await authStorage.saveLoginCredentials(formData.cpf, formData.password);
+        await authStorage.saveLoginCredentials(formData.cpf);
       }
       router.replace('/home');
     } catch (error: unknown) {
@@ -112,7 +108,7 @@ export default function LoginScreen() {
                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
                   {rememberMe && <Ionicons name="checkmark" size={14} color={colors.surface} />}
                 </View>
-                <Text style={styles.rememberText}>Lembrar senha</Text>
+                <Text style={styles.rememberText}>Lembrar CPF e sessão</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

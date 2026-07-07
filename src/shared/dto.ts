@@ -2,6 +2,7 @@ import {
   UserRole,
   WorkOrderType,
   WorkOrderStatus,
+  WorkOrderDumpsterRole,
   CustomerType,
   DumpsterStatus,
   VehicleStatus,
@@ -122,11 +123,19 @@ export interface CreateYardDto {
   longitude?: number;
 }
 
+/** Uma caixa (caçamba) do pedido: role define a direção (OUT = levar/entregar, IN = retirar). */
+export interface WorkOrderBoxInput {
+  /** Nula/omitida = não atribuída pelo admin; motorista declara antes de iniciar/concluir. */
+  dumpsterId?: string | null;
+  role: WorkOrderDumpsterRole;
+}
+
 export interface CreateWorkOrderDto {
   type: WorkOrderType;
   driverId: string;
   vehicleId: string;
-  dumpsterId?: string;
+  /** Lista de caixas do pedido (substitui dumpsterId/exchangeDumpsterId). */
+  boxes: WorkOrderBoxInput[];
   jobSiteId?: string;
   yardId?: string;
   scheduledAt?: Date;
@@ -139,7 +148,8 @@ export interface UpdateWorkOrderDto {
   type?: WorkOrderType;
   driverId?: string;
   vehicleId?: string;
-  dumpsterId?: string;
+  /** Se presente, substitui integralmente a lista de caixas do pedido. */
+  boxes?: WorkOrderBoxInput[];
   jobSiteId?: string;
   yardId?: string;
   scheduledAt?: Date;
@@ -161,4 +171,12 @@ export interface CompleteWorkOrderDto {
   lng: number;
   accuracy?: number;
   notes?: string;
+}
+
+/** Body de POST /work-orders/driver/:id/start — atribuição das caixas não definidas pelo admin. */
+export interface StartWorkOrderDto {
+  boxAssignments?: Array<{
+    workOrderDumpsterId: string;
+    dumpsterId: string;
+  }>;
 }

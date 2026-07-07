@@ -6,8 +6,7 @@ const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
 const REMEMBER_ME_KEY = 'auth_remember_me';
 const SAVED_CPF_KEY = 'auth_saved_cpf';
-/** Senha lembrada no login (somente com “Lembrar senha”) — SecureStore */
-const SAVED_PASSWORD_KEY = 'auth_saved_password';
+const LEGACY_SAVED_PASSWORD_KEY = 'auth_saved_password';
 
 let inMemoryToken: string | null = null;
 
@@ -62,25 +61,19 @@ export const authStorage = {
   },
 
   /**
-   * Persiste CPF (apenas dígitos) e senha para pré-preencher o próximo acesso.
-   * Chamado após login com “Lembrar senha”.
+   * Persiste apenas o CPF (dígitos) para pré-preencher o próximo acesso.
+   * A senha não é armazenada.
    */
-  async saveLoginCredentials(cpf: string, password: string): Promise<void> {
+  async saveLoginCredentials(cpf: string): Promise<void> {
     const digits = cpf.replace(/\D/g, '');
     await AsyncStorage.setItem(SAVED_CPF_KEY, digits);
-    await SecureStore.setItemAsync(SAVED_PASSWORD_KEY, password);
   },
 
   async getSavedCpf(): Promise<string | null> {
-    return AsyncStorage.getItem(SAVED_CPF_KEY);
-  },
-
-  async getSavedPassword(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(SAVED_PASSWORD_KEY);
-    } catch {
-      return null;
-    }
+      await SecureStore.deleteItemAsync(LEGACY_SAVED_PASSWORD_KEY);
+    } catch {}
+    return AsyncStorage.getItem(SAVED_CPF_KEY);
   },
 
   async getToken(): Promise<string | null> {
@@ -150,7 +143,7 @@ export const authStorage = {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
     } catch {}
     try {
-      await SecureStore.deleteItemAsync(SAVED_PASSWORD_KEY);
+      await SecureStore.deleteItemAsync(LEGACY_SAVED_PASSWORD_KEY);
     } catch {}
     await AsyncStorage.multiRemove([USER_KEY, REMEMBER_ME_KEY, SAVED_CPF_KEY, 'token', 'user']);
   },
