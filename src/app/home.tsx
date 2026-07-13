@@ -1,16 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
 import { workOrdersApi } from '@/lib/api';
-import { WorkOrder, WorkOrderStatus } from '@/shared';
+import { WorkOrder } from '@/shared';
 import { colors } from '@/theme';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { formatCpf } from '@/utils/cpf';
-import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
-import {
-  getStatusColor,
-  getStatusLabel,
-  getTypeLabel,
-  getWorkOrderScheduledDateLabel,
-} from '@/utils/work-order-labels';
+import { getStatusColor, getStatusLabel, getTypeLabel } from '@/utils/work-order-labels';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -36,11 +30,7 @@ function boxesSummary(order: WorkOrder): string {
 }
 
 function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>) {
-  const deliveryDuration = formatWorkOrderDeliveryDuration(
-    order.startedAt,
-    order.completedAt,
-    order.status,
-  );
+  const boxLabel = (order.workOrderDumpsters?.length ?? 0) > 1 ? 'Num. das caixas' : 'Num. da caixa';
   return (
     <TouchableOpacity
       key={order.id}
@@ -48,21 +38,15 @@ function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>)
       onPress={() => router.push(`/work-order-detail?id=${order.id}`)}
     >
       <View style={styles.orderHeader}>
-        <Text style={styles.orderSequence}>{order.sequence}</Text>
+        <Text style={styles.orderType}>{getTypeLabel(order.type)}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
           <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
             {getStatusLabel(order.status)}
           </Text>
         </View>
       </View>
-      <Text style={styles.orderType}>{getTypeLabel(order.type)}</Text>
-      {order.scheduledAt && (
-        <Text style={styles.orderScheduled}>
-          {getWorkOrderScheduledDateLabel(order.type)}: {formatDateBr(order.scheduledAt)}
-        </Text>
-      )}
       <Text style={styles.orderInfo}>
-        {boxesSummary(order) + ' - ' + (order.vehicle?.placa ?? '—')}
+        {boxLabel} - {boxesSummary(order)}
       </Text>
       {order.jobSite?.customer && (
         <Text style={styles.orderCustomer}>{order.jobSite.customer.name}</Text>
@@ -73,16 +57,8 @@ function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>)
         </Text>
       )}
       {order.yard && <Text style={styles.orderAddress}>{order.yard.name}</Text>}
-      {deliveryDuration && (
-        <Text style={styles.orderSchedule}>
-          Tempo de entrega: {deliveryDuration}
-          {order.status === WorkOrderStatus.IN_PROGRESS ? ' (até agora)' : ''}
-        </Text>
-      )}
-      {order.startedAt && (
-        <Text style={styles.orderTime}>
-          Iniciado: {new Date(order.startedAt).toLocaleString('pt-BR')}
-        </Text>
+      {order.observations?.trim() && (
+        <Text style={styles.orderNote}>Observação: {order.observations}</Text>
       )}
     </TouchableOpacity>
   );
@@ -326,11 +302,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  orderSequence: {
-    fontSize: 16,
-    fontFamily: 'Inter_700Bold',
-    color: colors.textMuted,
-  },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -344,13 +315,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
     color: colors.appText,
-    marginBottom: 4,
-  },
-  orderScheduled: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 6,
-    fontFamily: 'Inter_600SemiBold',
   },
   orderInfo: {
     fontSize: 14,
@@ -368,14 +332,10 @@ const styles = StyleSheet.create({
     color: colors.textSubtle,
     marginBottom: 4,
   },
-  orderSchedule: {
-    fontSize: 11,
-    color: colors.textSubtle,
+  orderNote: {
+    fontSize: 12,
+    color: colors.textMuted,
     marginTop: 4,
-  },
-  orderTime: {
-    fontSize: 11,
-    color: colors.primary,
-    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
