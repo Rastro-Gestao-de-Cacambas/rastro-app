@@ -5,6 +5,7 @@ import { LoginDto } from '@/shared';
 import { colors } from '@/theme';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { maskCpfInput } from '@/utils/cpf';
+import { AppText as Text, AppTextInput as TextInput } from '@/components/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -14,8 +15,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -230,7 +229,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: colors.surface,
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Inter_600SemiBold',
     width: '100%',
     textAlign: 'center',
   },

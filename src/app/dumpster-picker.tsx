@@ -2,6 +2,7 @@ import { dumpstersApi } from '@/lib/api';
 import { invokePickerCallback } from '@/lib/dumpster-picker-callback';
 import { Dumpster } from '@/shared';
 import { colors } from '@/theme';
+import { AppText as Text, AppTextInput as TextInput } from '@/components/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -10,8 +11,7 @@ import {
   FlatList,
   Platform,
   StyleSheet,
-  Text,
-  TextInput,
+  TextInput as RNTextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -40,7 +40,7 @@ export default function DumpsterPickerScreen() {
     () => new Set((params.excludeIds ?? '').split(',').filter(Boolean)),
     [params.excludeIds],
   );
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<RNTextInput>(null);
 
   const [dumpsters, setDumpsters] = useState<Dumpster[]>([]);
   const [loading, setLoading] = useState(true);

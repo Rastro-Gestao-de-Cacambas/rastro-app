@@ -6,6 +6,7 @@ import { colors } from '@/theme';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
 import { getTypeLabel, getWorkOrderScheduledDateLabel } from '@/utils/work-order-labels';
+import { AppText as Text, AppTextInput as TextInput } from '@/components/AppText';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -17,8 +18,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';

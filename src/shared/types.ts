@@ -7,7 +7,6 @@ import {
   CustomerType,
   VehicleStatus,
   DriverStatus,
-  CNHCategory,
 } from './enums';
 
 export interface User {

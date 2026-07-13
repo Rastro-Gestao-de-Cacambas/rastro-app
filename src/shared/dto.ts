@@ -1,7 +1,6 @@
 import {
   UserRole,
   WorkOrderType,
-  WorkOrderStatus,
   WorkOrderDumpsterRole,
   CustomerType,
   DumpsterStatus,

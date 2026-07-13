@@ -5,15 +5,15 @@ import { colors } from '@/theme';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { formatCpf } from '@/utils/cpf';
 import { getStatusColor, getStatusLabel, getTypeLabel } from '@/utils/work-order-labels';
+import { AppText as Text } from '@/components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
