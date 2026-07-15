@@ -38,7 +38,10 @@ function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>)
       onPress={() => router.push(`/work-order-detail?id=${order.id}`)}
     >
       <View style={styles.orderHeader}>
-        <Text style={styles.orderType}>{getTypeLabel(order.type)}</Text>
+        <View style={styles.orderTitleBlock}>
+          <Text style={styles.orderNumber}>#{order.orderNumber}</Text>
+          <Text style={styles.orderType}>{getTypeLabel(order.type)}</Text>
+        </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) + '20' }]}>
           <Text style={[styles.statusText, { color: getStatusColor(order.status) }]}>
             {getStatusLabel(order.status)}
@@ -302,6 +305,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  orderTitleBlock: {
+    flex: 1,
+    marginRight: 8,
+  },
+  orderNumber: {
+    color: colors.textSlate,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    marginBottom: 2,
+  },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -312,6 +325,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
   },
   orderType: {
+    flexShrink: 1,
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
     color: colors.appText,

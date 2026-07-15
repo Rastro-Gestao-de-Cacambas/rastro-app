@@ -301,7 +301,7 @@ export default function WorkOrderDetailScreen() {
               <TouchableOpacity onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
                 <Ionicons name="arrow-back" size={24} color={colors.primary} />
               </TouchableOpacity>
-              <Text style={styles.sequence}>{workOrder.sequence}</Text>
+              <Text style={styles.orderNumber}>#{workOrder.orderNumber}</Text>
               <View style={styles.headerTypeCol}>
                 <Text style={styles.type}>{getTypeLabel(workOrder.type)}</Text>
                 {exchangeLeg != null && workOrder.status === 'IN_PROGRESS' && (
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
     padding: 4,
   },
-  sequence: {
+  orderNumber: {
     fontSize: 24,
     fontFamily: 'Inter_700Bold',
     color: colors.textMuted,

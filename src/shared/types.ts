@@ -73,6 +73,7 @@ export interface JobSite {
   customerId: string;
   name?: string;
   address: string;
+  streetNumber?: string;
   neighborhood?: string;
   reference?: string;
   city: string;
@@ -147,6 +148,7 @@ export interface WorkOrder {
   type: WorkOrderType;
   status: WorkOrderStatus;
   sequence: number;
+  orderNumber: number;
   scheduledAt?: Date;
   returnDueDate?: Date;
   observations?: string | null;
