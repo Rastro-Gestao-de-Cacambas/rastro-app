@@ -6,6 +6,7 @@ import {
   WorkOrderDumpsterRole,
   CustomerType,
   VehicleStatus,
+  WorkOrderCancellationReason,
   DriverStatus,
 } from './enums';
 
@@ -162,6 +163,11 @@ export interface WorkOrder {
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
+  canceledAt?: Date | null;
+  cancellationReason?: WorkOrderCancellationReason | null;
+  cancellationNotes?: string | null;
+  canceledByRole?: UserRole | null;
+  canceledById?: string | null;
   archivedAt?: Date | null;
   updatedAt: Date;
   driver?: Driver;

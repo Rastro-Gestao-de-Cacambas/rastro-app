@@ -1,5 +1,5 @@
 import { authStorage } from '@/lib/authStorage';
-import { AuthResponseDto, Dumpster, LoginDto, WorkOrder } from '@/shared';
+import { AuthResponseDto, CancelWorkOrderDto, Dumpster, LoginDto, WorkOrder } from '@/shared';
 import axios from 'axios';
 import { router } from 'expo-router';
 
@@ -72,6 +72,8 @@ export const workOrdersApi = {
     id: string,
     body?: { boxAssignments?: { workOrderDumpsterId: string; dumpsterId: string }[] },
   ) => api.post<WorkOrder>(`/work-orders/driver/${id}/start`, body ?? {}),
+  cancel: (id: string, body: CancelWorkOrderDto) =>
+    api.post<WorkOrder>(`/work-orders/driver/${id}/cancel`, body),
   complete: (
     id: string,
     body: {

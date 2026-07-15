@@ -1,7 +1,8 @@
 import { useLocation } from '@/hooks/useLocation';
+import { CancelWorkOrderModal } from '@/components/CancelWorkOrderModal';
 import { workOrdersApi } from '@/lib/api';
 import { registerPickerCallback } from '@/lib/dumpster-picker-callback';
-import { WorkOrder, WorkOrderDumpster, WorkOrderDumpsterRole, WorkOrderStatus, WorkOrderType } from '@/shared';
+import { WorkOrder, WorkOrderCancellationReason, WorkOrderDumpster, WorkOrderDumpsterRole, WorkOrderStatus, WorkOrderType } from '@/shared';
 import { colors } from '@/theme';
 import { getApiErrorMessage } from '@/utils/apiError';
 import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
@@ -38,6 +39,8 @@ export default function WorkOrderDetailScreen() {
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [canceling, setCanceling] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [completing, setCompleting] = useState(false);
   const { location, getCurrentLocation, loading: locationLoading } = useLocation();
   const [notes, setNotes] = useState('');
@@ -145,6 +148,44 @@ export default function WorkOrderDetailScreen() {
     } else {
       Alert.alert('Erro', 'Não foi possível obter a localização.');
     }
+  };
+
+  const confirmCancel = async (
+    reason: WorkOrderCancellationReason,
+    cancellationNotes?: string,
+  ) => {
+    if (!workOrder) return;
+    const cancelsExchangePickup =
+      workOrder.type === WorkOrderType.EXCHANGE && workOrder.exchangeLeg === 2;
+    setCanceling(true);
+    try {
+      const res = await workOrdersApi.cancel(workOrder.id, {
+        reason,
+        ...(cancellationNotes ? { notes: cancellationNotes } : {}),
+      });
+      setWorkOrder(res.data);
+      setCancelModalVisible(false);
+      Alert.alert(
+        'Pedido cancelado',
+        cancelsExchangePickup
+          ? 'A retirada foi cancelada. A caçamba já entregue permanece registrada na obra.'
+          : 'O pedido foi cancelado com sucesso.',
+        [{ text: 'OK', onPress: () => router.back() }],
+        { cancelable: false },
+      );
+    } catch (error: unknown) {
+      Alert.alert(
+        'Erro',
+        getApiErrorMessage(error, 'Não foi possível cancelar o pedido.'),
+      );
+    } finally {
+      setCanceling(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (!workOrder || canceling) return;
+    setCancelModalVisible(true);
   };
 
   const handleComplete = async () => {
@@ -476,7 +517,7 @@ export default function WorkOrderDetailScreen() {
                 <TouchableOpacity
                   style={[styles.completeButton, !location && styles.completeButtonDisabled]}
                   onPress={handleComplete}
-                  disabled={completing || !location}
+                  disabled={completing || canceling || !location}
                 >
                   {completing ? (
                     <ActivityIndicator color={colors.surface} />
@@ -486,6 +527,18 @@ export default function WorkOrderDetailScreen() {
                         ? 'Concluir entrega (etapa 1)'
                         : 'Concluir tarefa'}
                     </Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleCancel}
+                  disabled={canceling || completing}
+                >
+                  {canceling ? (
+                    <ActivityIndicator color={colors.danger} />
+                  ) : (
+                    <Text style={styles.cancelButtonText}>Cancelar pedido</Text>
                   )}
                 </TouchableOpacity>
               </>
@@ -520,6 +573,17 @@ export default function WorkOrderDetailScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <CancelWorkOrderModal
+        visible={cancelModalVisible}
+        canceling={canceling}
+        isExchangePickupStage={
+          workOrder.type === WorkOrderType.EXCHANGE && workOrder.exchangeLeg === 2
+        }
+        onClose={() => setCancelModalVisible(false)}
+        onConfirm={(reason, cancellationNotes) =>
+          void confirmCancel(reason, cancellationNotes)
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -729,6 +793,19 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
+  },
+  cancelButton: {
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  cancelButtonText: {
+    color: colors.danger,
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
   },
   completedSection: {
     backgroundColor: colors.primaryLight,

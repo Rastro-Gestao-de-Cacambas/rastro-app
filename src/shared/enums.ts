@@ -32,6 +32,16 @@ export enum WorkOrderStatus {
   CANCELED = 'CANCELED',
 }
 
+export enum WorkOrderCancellationReason {
+  STARTED_BY_MISTAKE = 'STARTED_BY_MISTAKE',
+  ACCESS_OBSTRUCTED = 'ACCESS_OBSTRUCTED',
+  VEHICLE_PROBLEM = 'VEHICLE_PROBLEM',
+  DUMPSTER_TOO_HEAVY = 'DUMPSTER_TOO_HEAVY',
+  CUSTOMER_REQUEST = 'CUSTOMER_REQUEST',
+  OPERATIONAL_DECISION = 'OPERATIONAL_DECISION',
+  OTHER = 'OTHER',
+}
+
 /**
  * Direção de uma caixa (caçamba) dentro do pedido.
  * OUT = fica IN_USE no endereço (entrega / caçamba nova da troca)

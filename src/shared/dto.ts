@@ -2,6 +2,7 @@ import {
   UserRole,
   WorkOrderType,
   WorkOrderDumpsterRole,
+  WorkOrderCancellationReason,
   CustomerType,
   DumpsterStatus,
   VehicleStatus,
@@ -169,6 +170,11 @@ export interface CompleteWorkOrderDto {
   lat: number;
   lng: number;
   accuracy?: number;
+  notes?: string;
+}
+
+export interface CancelWorkOrderDto {
+  reason: WorkOrderCancellationReason;
   notes?: string;
 }
 
