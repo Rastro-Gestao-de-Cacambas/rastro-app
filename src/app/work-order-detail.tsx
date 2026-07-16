@@ -31,6 +31,79 @@ function formatTime(seconds: number) {
   return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+function completionWasPersisted(previous: WorkOrder, current: WorkOrder): boolean {
+  if (previous.type === WorkOrderType.EXCHANGE) {
+    const previousLeg = previous.exchangeLeg ?? 1;
+    if (previousLeg === 1) {
+      return (
+        current.exchangeLeg === 2 ||
+        current.status === WorkOrderStatus.DELIVERED ||
+        current.status === WorkOrderStatus.DONE
+      );
+    }
+    return (
+      current.status === WorkOrderStatus.DELIVERED ||
+      current.status === WorkOrderStatus.DONE
+    );
+  }
+
+  if (previous.type === WorkOrderType.DROP_OFF) {
+    return (
+      current.status === WorkOrderStatus.DELIVERED ||
+      current.status === WorkOrderStatus.DONE
+    );
+  }
+
+  return current.status === WorkOrderStatus.DONE;
+}
+
+function hasHttpResponse(error: unknown): boolean {
+  return !!(
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    (error as { response?: unknown }).response
+  );
+}
+
+function getHttpStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object' || !('response' in error)) {
+    return undefined;
+  }
+  return (error as { response?: { status?: number } }).response?.status;
+}
+
+async function reconcileCompletion(previous: WorkOrder): Promise<{
+  persisted: boolean;
+  reachedServer: boolean;
+  order?: WorkOrder;
+}> {
+  let latestOrder: WorkOrder | undefined;
+  let reachedServer = false;
+
+  // O POST pode ter ultrapassado o timeout do celular e ainda estar terminando no
+  // servidor. Pequenas tentativas evitam informar falha enquanto a transação confirma.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 700));
+    }
+    try {
+      const response = await workOrdersApi.getById(previous.id, {
+        timeout: 4000,
+      });
+      reachedServer = true;
+      latestOrder = response.data;
+      if (completionWasPersisted(previous, latestOrder)) {
+        return { persisted: true, reachedServer: true, order: latestOrder };
+      }
+    } catch {
+      // A próxima tentativa pode confirmar o resultado quando a conexão voltar.
+    }
+  }
+
+  return { persisted: false, reachedServer, order: latestOrder };
+}
+
 export default function WorkOrderDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -106,6 +179,33 @@ export default function WorkOrderDetailScreen() {
       setWorkOrder(res.data);
       Alert.alert('Sucesso', 'Tarefa iniciada!');
     } catch (error: unknown) {
+      if (!hasHttpResponse(error)) {
+        try {
+          const refreshed = await workOrdersApi.getById(workOrder.id, {
+            timeout: 4000,
+          });
+          if (refreshed.data.status === WorkOrderStatus.IN_PROGRESS) {
+            setWorkOrder(refreshed.data);
+            Alert.alert(
+              'Sucesso',
+              'A conexão oscilou, mas confirmamos que a tarefa foi iniciada.',
+            );
+            return;
+          }
+          setWorkOrder(refreshed.data);
+          Alert.alert(
+            'Não iniciada',
+            'Conferimos o pedido e ele ainda está pendente. Tente iniciar novamente.',
+          );
+          return;
+        } catch {
+          Alert.alert(
+            'Conferência necessária',
+            'A conexão caiu e não foi possível confirmar o início. Atualize o pedido quando a internet voltar antes de tentar novamente.',
+          );
+          return;
+        }
+      }
       Alert.alert('Erro', getApiErrorMessage(error, 'Não foi possível registrar o início da tarefa.'));
     } finally {
       setStarting(false);
@@ -197,25 +297,56 @@ export default function WorkOrderDetailScreen() {
     setCompleting(true);
     const prevExchangeLeg1 =
       workOrder.type === WorkOrderType.EXCHANGE && (workOrder.exchangeLeg ?? 1) === 1;
+    const showCompletionSuccess = (updatedOrder: WorkOrder, reconciled = false) => {
+      setWorkOrder(updatedOrder);
+      const reconciliationPrefix = reconciled
+        ? 'A conexão oscilou, mas confirmamos que a operação foi salva. '
+        : '';
+      if (prevExchangeLeg1) {
+        Alert.alert(
+          'Sucesso',
+          `${reconciliationPrefix}Entrega da caçamba nova registrada. Agora retire a caçamba antiga — ela ficará marcada como "Para descartar".`,
+        );
+        return;
+      }
+      Alert.alert('Sucesso', `${reconciliationPrefix}Tarefa concluída!`, [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    };
     try {
       const res = await workOrdersApi.complete(workOrder.id, {
         lat: location.lat,
         lng: location.lng,
         ...(location.accuracy != null ? { accuracy: location.accuracy } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(workOrder.type === WorkOrderType.EXCHANGE
+          ? { exchangeLeg: workOrder.exchangeLeg ?? 1 }
+          : {}),
       });
-      setWorkOrder(res.data);
-      if (prevExchangeLeg1) {
+      showCompletionSuccess(res.data);
+    } catch (error: unknown) {
+      if (!hasHttpResponse(error) || getHttpStatus(error) === 409) {
+        const reconciliation = await reconcileCompletion(workOrder);
+        if (reconciliation.persisted && reconciliation.order) {
+          showCompletionSuccess(reconciliation.order, true);
+          return;
+        }
+        if (reconciliation.order) {
+          setWorkOrder(reconciliation.order);
+        }
+        if (!reconciliation.reachedServer) {
+          Alert.alert(
+            'Conferência necessária',
+            'A conexão caiu e não foi possível confirmar se a tarefa foi salva. Atualize o pedido quando a internet voltar antes de tentar novamente.',
+          );
+          return;
+        }
         Alert.alert(
-          'Sucesso',
-          'Entrega da caçamba nova registrada. Agora retire a caçamba antiga — ela ficará marcada como "Para descartar".',
+          'Não concluída',
+          'Conferimos o pedido e ele ainda está em andamento. Tente concluir novamente.',
         );
         return;
       }
-      Alert.alert('Sucesso', 'Tarefa concluída!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-    } catch (error: unknown) {
       Alert.alert('Erro', getApiErrorMessage(error, 'Não foi possível registrar a conclusão da tarefa.'));
     } finally {
       setCompleting(false);

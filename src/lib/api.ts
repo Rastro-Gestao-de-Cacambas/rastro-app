@@ -67,7 +67,8 @@ export const dumpstersApi = {
 
 export const workOrdersApi = {
   getMyOrders: () => api.get<WorkOrder[]>('/work-orders/driver'),
-  getById: (id: string) => api.get<WorkOrder>(`/work-orders/driver/${id}`),
+  getById: (id: string, options?: { timeout?: number }) =>
+    api.get<WorkOrder>(`/work-orders/driver/${id}`, options),
   start: (
     id: string,
     body?: { boxAssignments?: { workOrderDumpsterId: string; dumpsterId: string }[] },
@@ -81,6 +82,7 @@ export const workOrdersApi = {
       lng: number;
       accuracy?: number;
       notes?: string;
+      exchangeLeg?: number;
     },
   ) => api.post<WorkOrder>(`/work-orders/driver/${id}/complete`, body),
 };

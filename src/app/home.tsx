@@ -146,7 +146,7 @@ export default function HomeScreen() {
 
       <View style={styles.hintBar}>
         <Text style={styles.hintBarText}>
-          Pedidos de hoje e pendentes em aberto (incluindo atrasados)
+          Pedidos de hoje, pendentes em aberto e concluídos nas últimas 24h
         </Text>
       </View>
 

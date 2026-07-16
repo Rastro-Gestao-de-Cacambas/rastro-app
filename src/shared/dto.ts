@@ -171,6 +171,7 @@ export interface CompleteWorkOrderDto {
   lng: number;
   accuracy?: number;
   notes?: string;
+  exchangeLeg?: number;
 }
 
 export interface CancelWorkOrderDto {
