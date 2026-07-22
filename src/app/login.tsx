@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -66,7 +67,12 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            <Text style={styles.title}>Gestão de Caçambas</Text>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel="Rastro"
+            />
             <Text style={styles.subtitle}>App do Motorista</Text>
 
             <View style={styles.form}>
@@ -148,12 +154,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  title: {
-    fontSize: 24,
-    fontFamily: 'Inter_700Bold',
-    textAlign: 'center',
-    marginBottom: 8,
-    color: colors.primary,
+  logo: {
+    width: 190,
+    height: 153,
+    alignSelf: 'center',
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
