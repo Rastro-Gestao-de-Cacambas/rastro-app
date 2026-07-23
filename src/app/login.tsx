@@ -56,85 +56,105 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      <Image
+        source={require('../../assets/images/login-background.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+        accessible={false}
+      />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.content}>
-            <Image
-              source={require('../../assets/images/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel="Rastro"
-            />
-            <Text style={styles.subtitle}>App do Motorista</Text>
-
-            <View style={styles.form}>
-              <TextInput
-                style={styles.input}
-                placeholder="CPF"
-                placeholderTextColor={colors.textSubtle}
-                value={formData.cpf}
-                onChangeText={(text) => setFormData({ ...formData, cpf: maskCpfInput(text) })}
-                keyboardType="numeric"
-                maxLength={14}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.content}>
+              <Image
+                source={require('../../assets/images/brand-logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityLabel="Rastro"
               />
+              <Text style={styles.subtitle}>App do Motorista</Text>
 
-              <View style={styles.passwordInputContainer}>
+              <View style={styles.form}>
                 <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Senha"
+                  style={styles.input}
+                  placeholder="CPF"
                   placeholderTextColor={colors.textSubtle}
-                  value={formData.password}
-                  onChangeText={(text) => setFormData({ ...formData, password: text })}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
+                  value={formData.cpf}
+                  onChangeText={(text) => setFormData({ ...formData, cpf: maskCpfInput(text) })}
+                  keyboardType="numeric"
+                  maxLength={14}
                 />
+
+                <View style={styles.passwordInputContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="Senha"
+                    placeholderTextColor={colors.textSubtle}
+                    value={formData.password}
+                    onChangeText={(text) => setFormData({ ...formData, password: text })}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword((prev) => !prev)}
+                    style={styles.passwordToggle}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={22}
+                      color={colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
+
                 <TouchableOpacity
-                  onPress={() => setShowPassword((prev) => !prev)}
-                  style={styles.passwordToggle}
+                  style={styles.rememberRow}
+                  onPress={() => setRememberMe(!rememberMe)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={22} color={colors.textMuted} />
+                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                    {rememberMe && <Ionicons name="checkmark" size={14} color={colors.surface} />}
+                  </View>
+                  <Text style={styles.rememberText}>Lembrar CPF e sessão</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                >
+                  <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
                 </TouchableOpacity>
               </View>
-
-              <TouchableOpacity
-                style={styles.rememberRow}
-                onPress={() => setRememberMe(!rememberMe)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                  {rememberMe && <Ionicons name="checkmark" size={14} color={colors.surface} />}
-                </View>
-                <Text style={styles.rememberText}>Lembrar CPF e sessão</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.appBg,
+    backgroundColor: colors.primaryDark,
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  safeArea: {
+    flex: 1,
   },
   keyboardView: {
     flex: 1,

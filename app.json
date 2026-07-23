@@ -5,9 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon.png",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/splash-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -20,8 +20,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "monochromeImage": "./assets/images/monochrome-icon.png",
+        "foregroundImage": "./assets/images/android-adaptive-foreground.png",
+        "monochromeImage": "./assets/images/android-monochrome-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.cacambas.mobile",
@@ -33,7 +33,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/web-favicon.png"
     },
     "plugins": [
       [
@@ -47,12 +47,12 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#ffffff",
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-logo.png",
           "imageWidth": 280,
           "resizeMode": "contain",
           "android": {
             "backgroundColor": "#ffffff",
-            "image": "./assets/images/splash-icon.png",
+            "image": "./assets/images/splash-logo.png",
             "imageWidth": 150,
             "resizeMode": "contain"
           }
