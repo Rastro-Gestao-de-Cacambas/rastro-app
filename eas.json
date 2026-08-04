@@ -1,5 +1,5 @@
 {
-  "cli": { "version": ">= 5.0.0" },
+  "cli": { "version": ">= 5.0.0", "appVersionSource": "remote" },
   "build": {
     "development": {
       "developmentClient": true,
@@ -16,11 +16,12 @@
       "android": { "buildType": "apk" }
     },
     "production": {
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://rastro-api-production-1941.up.railway.app"
       },
       "ios": { "simulator": false },
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "app-bundle" }
     }
   },
   "submit": { "production": {} }
