@@ -8,7 +8,11 @@ const REMEMBER_ME_KEY = 'auth_remember_me';
 const SAVED_CPF_KEY = 'auth_saved_cpf';
 const LEGACY_SAVED_PASSWORD_KEY = 'auth_saved_password';
 
+// Sessão sem "lembrar": token e usuário vivem só enquanto o app estiver aberto.
+// O usuário precisa acompanhar o token aqui, senão as telas ficam sem nome/CPF
+// mesmo com a sessão válida — e gravá-lo no disco anularia a escolha do motorista.
 let inMemoryToken: string | null = null;
+let inMemoryUser: User | null = null;
 
 function base64Decode(str: string): string {
   if (typeof atob === 'function') return atob(str);
@@ -54,9 +58,11 @@ export const authStorage = {
       await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
       await AsyncStorage.setItem(REMEMBER_ME_KEY, 'true');
       inMemoryToken = null;
+      inMemoryUser = null;
     } else {
       await this.clearPersisted();
       inMemoryToken = token;
+      inMemoryUser = user;
     }
   },
 
@@ -102,6 +108,7 @@ export const authStorage = {
   },
 
   async getUser(): Promise<User | null> {
+    if (inMemoryUser) return inMemoryUser;
     try {
       let userStr = await AsyncStorage.getItem(USER_KEY) ?? await AsyncStorage.getItem('user');
       if (userStr) {
@@ -131,6 +138,7 @@ export const authStorage = {
 
   async clearSession(): Promise<void> {
     inMemoryToken = null;
+    inMemoryUser = null;
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
     } catch {}
@@ -139,6 +147,8 @@ export const authStorage = {
 
   /** Remove token/sessão e credenciais lembradas (ex.: login sem “Lembrar senha”). */
   async clearPersisted(): Promise<void> {
+    inMemoryToken = null;
+    inMemoryUser = null;
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
     } catch {}

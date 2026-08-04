@@ -24,6 +24,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+/** Espelha MAX_GPS_ACCURACY_METERS da API: conclusão acima disso é rejeitada com 400. */
+const MAX_GPS_ACCURACY_METERS = 50;
+
 function formatTime(seconds: number) {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
@@ -140,6 +143,9 @@ export default function WorkOrderDetailScreen() {
   const boxes = workOrder?.workOrderDumpsters ?? [];
   const unassignedBoxes = boxes.filter((b) => !b.dumpsterId);
   const allBoxesAssigned = unassignedBoxes.every((b) => assignments[b.id]);
+  const locationAccuracyOk =
+    location != null &&
+    (location.accuracy == null || location.accuracy <= MAX_GPS_ACCURACY_METERS);
 
   // Reset atribuições sempre que trocar de pedido ou não houver mais caixas para declarar
   useEffect(() => {
@@ -242,12 +248,34 @@ export default function WorkOrderDetailScreen() {
   };
 
   const handleGetLocation = async () => {
-    const loc = await getCurrentLocation();
-    if (loc) {
+    const result = await getCurrentLocation();
+
+    if (result.status === 'granted') {
       Alert.alert('Sucesso', 'Localização capturada!');
-    } else {
-      Alert.alert('Erro', 'Não foi possível obter a localização.');
+      return;
     }
+
+    if (result.status === 'blocked') {
+      Alert.alert(
+        'Localização bloqueada',
+        'A permissão foi negada e o Android não vai perguntar de novo. Sem localização não é possível concluir a tarefa — libere o acesso nas configurações do aparelho.',
+        [
+          { text: 'Agora não', style: 'cancel' },
+          { text: 'Abrir configurações', onPress: () => void Linking.openSettings() },
+        ],
+      );
+      return;
+    }
+
+    if (result.status === 'denied') {
+      Alert.alert(
+        'Permissão necessária',
+        'A localização é obrigatória para registrar a conclusão da tarefa. Toque em "Capturar localização" e permita o acesso.',
+      );
+      return;
+    }
+
+    Alert.alert('Erro', result.message || 'Não foi possível obter a localização.');
   };
 
   const confirmCancel = async (
@@ -292,6 +320,13 @@ export default function WorkOrderDetailScreen() {
     if (!workOrder) return;
     if (!location) {
       Alert.alert('Atenção', 'É necessário capturar a localização GPS para concluir a tarefa.');
+      return;
+    }
+    if (!locationAccuracyOk) {
+      Alert.alert(
+        'Precisão insuficiente',
+        `A localização capturada tem precisão de ${location.accuracy?.toFixed(0)}m e o máximo permitido é ${MAX_GPS_ACCURACY_METERS}m. Capture novamente, de preferência ao ar livre.`,
+      );
       return;
     }
     setCompleting(true);
@@ -625,11 +660,13 @@ export default function WorkOrderDetailScreen() {
                       {location.accuracy != null && ` (${location.accuracy.toFixed(0)}m)`}
                     </Text>
                   )}
-                  {location?.accuracy != null && location.accuracy > 50 && (
-                    <Text style={styles.locationWarning}>
-                      Precisão insuficiente ({location.accuracy.toFixed(0)}m). Máx. permitido: 50m. Tente capturar novamente ao ar livre.
-                    </Text>
-                  )}
+                  {location?.accuracy != null &&
+                    location.accuracy > MAX_GPS_ACCURACY_METERS && (
+                      <Text style={styles.locationWarning}>
+                        Precisão insuficiente ({location.accuracy.toFixed(0)}m). Máx. permitido:{' '}
+                        {MAX_GPS_ACCURACY_METERS}m. Tente capturar novamente ao ar livre.
+                      </Text>
+                    )}
                 </View>
 
                 <View style={styles.section}>
@@ -646,9 +683,12 @@ export default function WorkOrderDetailScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.completeButton, !location && styles.completeButtonDisabled]}
+                  style={[
+                    styles.completeButton,
+                    !locationAccuracyOk && styles.completeButtonDisabled,
+                  ]}
                   onPress={handleComplete}
-                  disabled={completing || canceling || !location}
+                  disabled={completing || canceling || !locationAccuracyOk}
                 >
                   {completing ? (
                     <ActivityIndicator color={colors.surface} />
