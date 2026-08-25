@@ -4,7 +4,7 @@ import { workOrdersApi } from '@/lib/api';
 import { registerPickerCallback } from '@/lib/dumpster-picker-callback';
 import { WorkOrder, WorkOrderCancellationReason, WorkOrderDumpster, WorkOrderDumpsterRole, WorkOrderStatus, WorkOrderType } from '@/shared';
 import { colors } from '@/theme';
-import { getApiErrorMessage } from '@/utils/apiError';
+import { getApiErrorMessage, getApiErrorTitle } from '@/utils/apiError';
 import { formatDateBr, formatWorkOrderDeliveryDuration } from '@/utils/date';
 import { getTypeLabel, getWorkOrderScheduledDateLabel } from '@/utils/work-order-labels';
 import { AppText as Text, AppTextInput as TextInput } from '@/components/AppText';
@@ -212,7 +212,10 @@ export default function WorkOrderDetailScreen() {
           return;
         }
       }
-      Alert.alert('Erro', getApiErrorMessage(error, 'Não foi possível registrar o início da tarefa.'));
+      Alert.alert(
+        getApiErrorTitle(error),
+        getApiErrorMessage(error, 'Não foi possível registrar o início da tarefa.'),
+      );
     } finally {
       setStarting(false);
     }
@@ -303,7 +306,7 @@ export default function WorkOrderDetailScreen() {
       );
     } catch (error: unknown) {
       Alert.alert(
-        'Erro',
+        getApiErrorTitle(error),
         getApiErrorMessage(error, 'Não foi possível cancelar o pedido.'),
       );
     } finally {
@@ -382,7 +385,10 @@ export default function WorkOrderDetailScreen() {
         );
         return;
       }
-      Alert.alert('Erro', getApiErrorMessage(error, 'Não foi possível registrar a conclusão da tarefa.'));
+      Alert.alert(
+        getApiErrorTitle(error),
+        getApiErrorMessage(error, 'Não foi possível registrar a conclusão da tarefa.'),
+      );
     } finally {
       setCompleting(false);
     }
