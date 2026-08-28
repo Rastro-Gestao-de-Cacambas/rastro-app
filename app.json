@@ -2,7 +2,7 @@
   "expo": {
     "name": "Rastro",
     "slug": "cacambas-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/images/app-icon.png",
