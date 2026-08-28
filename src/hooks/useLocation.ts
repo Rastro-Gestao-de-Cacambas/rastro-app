@@ -7,34 +7,31 @@ export interface CapturedLocation {
   accuracy?: number;
 }
 
+/**
+ * `blocked` = permissão negada com "não perguntar de novo". A partir daí o Android
+ * não exibe mais o diálogo, então pedir de novo não adianta: a única saída é o
+ * motorista liberar o acesso nas configurações do sistema.
+ */
+export type LocationResult =
+  | { status: 'granted'; location: CapturedLocation }
+  | { status: 'denied' }
+  | { status: 'blocked' }
+  | { status: 'error'; message: string };
+
 export function useLocation() {
   const [location, setLocation] = useState<CapturedLocation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const requestPermissions = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setError('Permissão de localização negada');
-        return false;
-      }
-      return true;
-    } catch {
-      setError('Erro ao solicitar permissão de localização');
-      return false;
-    }
-  };
-
-  const getCurrentLocation = async (): Promise<CapturedLocation | null> => {
+  const getCurrentLocation = async (): Promise<LocationResult> => {
     setLoading(true);
     setError(null);
 
     try {
-      const hasPermission = await requestPermissions();
-      if (!hasPermission) {
-        setLoading(false);
-        return null;
+      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setError('Permissão de localização negada');
+        return canAskAgain ? { status: 'denied' } : { status: 'blocked' };
       }
 
       const pos = await Location.getCurrentPositionAsync({
@@ -48,12 +45,13 @@ export function useLocation() {
       };
 
       setLocation(captured);
-      setLoading(false);
-      return captured;
+      return { status: 'granted', location: captured };
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro ao obter localização');
+      const message = err instanceof Error ? err.message : 'Erro ao obter localização';
+      setError(message);
+      return { status: 'error', message };
+    } finally {
       setLoading(false);
-      return null;
     }
   };
 

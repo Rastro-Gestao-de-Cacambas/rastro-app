@@ -2,7 +2,7 @@
   "expo": {
     "name": "Rastro",
     "slug": "cacambas-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/images/app-icon.png",
@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cacambas.mobile"
+      "bundleIdentifier": "br.com.rastroapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,12 +24,15 @@
         "monochromeImage": "./assets/images/android-monochrome-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.cacambas.mobile",
+      "package": "br.com.rastroapp",
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -58,9 +61,10 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ],
-    "scheme": "cacambas",
+    "scheme": "rastro",
     "extra": {
       "eas": {
         "projectId": "e564923e-2ab3-4e82-8b63-5d41a7309bf3"

@@ -15,6 +15,7 @@ export interface User {
   email?: string;
   username?: string;
   name: string;
+  companyName?: string | null;
   cpf?: string;
   role: UserRole;
   isActive?: boolean;
@@ -129,6 +130,7 @@ export interface Yard {
 export interface Dumpster {
   id: string;
   code: string;
+  productType?: { name: string } | null;
   capacityValue: number;
   capacityUnit: string;
   status: DumpsterStatus;

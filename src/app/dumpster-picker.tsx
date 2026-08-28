@@ -19,6 +19,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 type PickerMode = 'OUT' | 'IN' | 'DUMP';
 
+function formatCapacity(dumpster: Dumpster): string {
+  const unit = dumpster.capacityUnit === 'M3' ? 'm³' : dumpster.capacityUnit.toLowerCase();
+  return `${dumpster.capacityValue}${unit}`;
+}
+
 const HEADER_TITLE: Record<PickerMode, string> = {
   OUT: 'Selecionar Caçamba',
   IN: 'Selecionar Caçamba a Retirar',
@@ -153,9 +158,11 @@ export default function DumpsterPickerScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.itemLeft}>
-                <Text style={styles.itemCode}>{item.code}</Text>
+                <Text style={styles.itemCode}>
+                  {item.productType?.name ? `${item.productType.name} · ` : ''}{item.code}
+                </Text>
                 <Text style={styles.itemCapacity}>
-                  {item.capacityValue} {item.capacityUnit}
+                  {formatCapacity(item)}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.borderLight} />

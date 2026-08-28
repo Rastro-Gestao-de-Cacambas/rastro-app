@@ -13,3 +13,18 @@ export function getApiErrorMessage(error: unknown, fallback = 'Ocorreu um erro i
   if (error instanceof Error) return error.message;
   return fallback;
 }
+
+export function getApiErrorTitle(error: unknown, fallback = 'Erro'): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const code = (
+      error as { response?: { data?: { error?: string } } }
+    ).response?.data?.error;
+    if (code === 'SUBSCRIPTION_INACTIVE') {
+      return 'Assinatura da empresa';
+    }
+    if (code === 'PLAN_LIMIT_EXCEEDED') {
+      return 'Limite do plano';
+    }
+  }
+  return fallback;
+}
