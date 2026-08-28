@@ -20,6 +20,7 @@ export interface DriverAuthResponseDto {
   user: {
     id: string;
     name: string;
+    companyName?: string | null;
     cpf: string;
     role: string;
     empresaId?: string | null;

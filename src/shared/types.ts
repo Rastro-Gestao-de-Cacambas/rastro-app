@@ -15,6 +15,7 @@ export interface User {
   email?: string;
   username?: string;
   name: string;
+  companyName?: string | null;
   cpf?: string;
   role: UserRole;
   isActive?: boolean;
