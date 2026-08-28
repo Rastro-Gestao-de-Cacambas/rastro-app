@@ -29,6 +29,15 @@ function boxesSummary(order: WorkOrder): string {
     : `${boxes.length} caçambas`;
 }
 
+function isBeforeToday(value?: Date | string | null): boolean {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return date.getTime() < startOfToday.getTime();
+}
+
 function renderOrderCard(order: WorkOrder, router: ReturnType<typeof useRouter>) {
   const boxLabel = (order.workOrderDumpsters?.length ?? 0) > 1 ? 'Num. das caixas' : 'Num. da caixa';
   return (
@@ -124,6 +133,8 @@ export default function HomeScreen() {
   const activeOrders = workOrders.filter(
     (wo) => wo.status === 'PENDING' || wo.status === 'IN_PROGRESS',
   );
+  const overdueOrders = activeOrders.filter((wo) => isBeforeToday(wo.scheduledAt));
+  const todayOrders = activeOrders.filter((wo) => !isBeforeToday(wo.scheduledAt));
   const completedOrders = workOrders.filter(
     (wo) => wo.status === 'DONE' || wo.status === 'DELIVERED',
   );
@@ -147,7 +158,7 @@ export default function HomeScreen() {
 
       <View style={styles.hintBar}>
         <Text style={styles.hintBarText}>
-          Pedidos de hoje, pendentes em aberto e concluídos nas últimas 24h
+          Tarefas de hoje e vencidas
         </Text>
       </View>
 
@@ -170,15 +181,31 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {activeOrders.length > 0 && (
+            {overdueOrders.length > 0 && (
               <View style={styles.sectionBlock}>
-                <Text style={styles.sectionHeading}>Em aberto</Text>
-                {activeOrders.map((o) => renderOrderCard(o, router))}
+                <Text style={styles.sectionHeading}>Vencidas</Text>
+                {overdueOrders.map((o) => renderOrderCard(o, router))}
+              </View>
+            )}
+            {todayOrders.length > 0 && (
+              <View
+                style={[
+                  styles.sectionBlock,
+                  overdueOrders.length > 0 && styles.sectionBlockSpaced,
+                ]}
+              >
+                <Text style={styles.sectionHeading}>Hoje</Text>
+                {todayOrders.map((o) => renderOrderCard(o, router))}
               </View>
             )}
             {completedOrders.length > 0 && (
-              <View style={[styles.sectionBlock, activeOrders.length > 0 && styles.sectionBlockSpaced]}>
-                <Text style={styles.sectionHeading}>Concluídas</Text>
+              <View
+                style={[
+                  styles.sectionBlock,
+                  (overdueOrders.length > 0 || todayOrders.length > 0) && styles.sectionBlockSpaced,
+                ]}
+              >
+                <Text style={styles.sectionHeading}>Concluídas hoje</Text>
                 {completedOrders.map((o) => renderOrderCard(o, router))}
               </View>
             )}
