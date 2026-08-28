@@ -139,6 +139,7 @@ export default function HomeScreen() {
         </View>
         {user && (
           <Text style={styles.driverInfo} numberOfLines={1}>
+            {user.companyName ? `${user.companyName} • ` : ''}
             {user.name}{user.cpf ? ` • ${formatCpf(user.cpf)}` : ''}
           </Text>
         )}
